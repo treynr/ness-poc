@@ -1,0 +1,16 @@
+## Ignore the following shit:
+
+## Stack work directory
+.stack-work/**
+.stack-work
+
+## performance profiling files
+*.prof
+
+## vim swap files
+*.sw*
+
+## output files
+*.json
+*.tsv
+

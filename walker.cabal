@@ -1,0 +1,53 @@
+name:                walker
+version:             0.1.0
+-- synopsis:
+-- description:
+-- homepage:
+license:             BSD3
+license-file:        LICENSE
+author:              TR
+maintainer:          tim@fin0c.net
+copyright:           2017 TR
+category:            Bioinformatics
+build-type:          Simple
+extra-source-files:  readme
+cabal-version:       >=1.10
+
+library
+  hs-source-dirs:      src
+  ghc-options:         -Wall -O3
+  exposed-modules:     Lib
+                     , File
+                     , Graph2
+                     , Graphs
+                     , Types
+                     , Walk
+  build-depends:       base >= 4.7 && < 5
+                     , algebraic-graphs
+                     , bytestring
+                     , containers
+                     , fgl
+                     , matrix
+                     , vector
+  default-language:    Haskell2010
+
+executable walker
+  hs-source-dirs:      app
+  main-is:             Main.hs
+  ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N -O3
+  build-depends:       base
+                     , walker
+  default-language:    Haskell2010
+
+test-suite walker-test
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  main-is:             Spec.hs
+  build-depends:       base
+                     , walker
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N -O0
+  default-language:    Haskell2010
+
+source-repository head
+  type:     git
+  location: https://github.com/githubuser/walker

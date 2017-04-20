@@ -1,0 +1,76 @@
+GSE README
+
+ABOUT
+
+	GeneWeaver Gene Set Enrichment. Determines ontology concept
+	overrepresentation and significance for GeneWeaver gene sets.
+
+REQUIREMENTS
+	
+	Stack
+	GHC
+
+INSTALLATION
+
+	Set up the Haskell environment from the gse/ directory
+		$ stack setup
+
+	Compile the software
+		$ stack build
+	
+SYNOPSIS
+
+	gse [OPTIONS] <gs-file> <human> <mouse> <yeast> <output>
+
+ARGUMENTS
+
+	The program requires five arguments, each of which are filepaths.
+
+	gs-file
+
+		Path to a GeneWeaver gene set file. This is an ASCII, tab delimited
+		file. Comments are prefixed with '#' and columns with multiple values
+		are separated with '|'. The format contains the following columns:
+			
+			(0)   (1) 	(2) 	 (3)
+			GS_ID SP_ID TAXON_ID GENE(S)
+
+	human
+
+		Path to a file containing human annotations. This is an ASCII, tab delimited
+		file. Comments are prefixed with '#' and columns with multiple values
+		are separated with '||' or '|'. The format contains the following columns:
+			
+			(0)   (1) 	  (2) 	 	  (3)
+			GO_ID GO_TERM DESCRIPTION GENE(S)
+	
+	mouse
+
+		Path to a file containing mouse annotations. Same format as 'human'.
+
+	yeast
+
+		Path to a file containing yeast annotations. Same format as 'human'.
+
+	output
+
+		Path to an output file which will contain GO terms that are
+		significantly overrepresented among the provided gene sets. The output
+		format is an ASCII, tab delimited file. Comments are prefixed with '#'.
+		The format contains the following columns:
+
+			(0)  (1)   (2)
+			GENE GO_ID P_VALUE
+
+OPTIONS
+
+	-h
+	--help
+
+		print the help message
+
+	-v
+	--verbose
+
+		clutter your screen with program output
+
