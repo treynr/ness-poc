@@ -18,8 +18,7 @@ library
   ghc-options:         -Wall -O3
   exposed-modules:     Lib
                      , File
-                     , Graph2
-                     , Graphs
+                     , Graph
                      , Types
                      , Walk
   build-depends:       base >= 4.7 && < 5

@@ -20,49 +20,81 @@ import qualified Data.Map.Strict as M
 
 import Types
 
--- | Parses the contents of an edge list file into a list of gene-gene edges.
+removeEmpties :: [ByteString] -> [ByteString]
 --
-parseEdgeListFile :: ByteString -> [(Gene, Gene)]
+removeEmpties = filter (not . B.null)
+
+removeComments :: [ByteString] -> [ByteString]
+--
+removeComments = filter (\b -> B.index b 0 /= '#')
+
+-- | Parses the contents of an edge list file into a list of gene-gene edges
+-- | and converts the Genes into Entity types.
+--
+parseEdgeListFile :: ByteString -> [(Entity, Entity)]
 --
 parseEdgeListFile bs = map (tuplify . B.split '\t') 
                        (removeComments $! removeEmpties $! B.lines bs)
     where
-        removeEmpties = filter (not . B.null)
-        removeComments = filter (\b -> B.index b 0 /= '#')
         toInt = fst . fromMaybe (0, "") . B.readInt
-        tuplify ((!a):(!b):_) = (Gene $ toInt a, Gene $ toInt b)
+        tuplify (a:b:_) = (EGene $ Gene $ toInt a, EGene $ Gene $ toInt b)
 
 -- | Reads and parses the edge list file.
 --
-readEdgeListFile :: FilePath -> IO [(Gene, Gene)]
+readEdgeListFile :: FilePath -> IO [(Entity, Entity)]
 --
 readEdgeListFile fp = parseEdgeListFile <$> B.readFile fp
 
--- | The input list of ByteString should be three elements long: gs_id, sp_id,
--- | and ode_gene_ids which are separated by '|'.
+-- | Converts the given ByteString into Entity GeneSet types. The input list 
+-- | of ByteStrings should be three elements long: gs_id, sp_id, and 
+-- | ode_gene_ids which are separated by '|'.
 --
-toGeneset :: [ByteString] -> (GeneSet, [Gene])
+toGeneset :: [ByteString] -> (Entity, [Entity])
 --
-toGeneset [a, b, c] =  (GeneSet (toInt a) (toInt b), geneSplit)
+toGeneset [a, b, c] =  (EGeneSet $! GeneSet (toInt a) (toInt b), geneSplit)
     where
         toInt = fst . fromMaybe (0, "") . B.readInt
-        geneSplit = map (Gene . toInt) $ B.split '|' c
-toGeneset _ = (GeneSet 0 0, [])
+        geneSplit = map (EGene . Gene . toInt) $ B.split '|' c
+toGeneset _ = (Invalid, [])
 
 -- | Parses the contents of a gene set file into a list of sets and associated
 -- | genes.
 --
-parseGenesetFile :: ByteString -> [(GeneSet, [Gene])]
+parseGenesetFile :: ByteString -> [(Entity, [Entity])]
 --
-parseGenesetFile bs = map (toGeneset . B.split '\t') 
-                      (removeComments $ removeEmpties $ B.lines bs)
-    where
-        removeEmpties = filter (not . B.null)
-        removeComments = filter (\b -> B.index b 0 /= '#')
+parseGenesetFile = map (toGeneset . B.split '\t') . removeComments . 
+                   removeEmpties . B.lines
 
 -- | Reads and parses the gene set file.
 --
-readGenesetFile :: FilePath -> IO [(GeneSet, [Gene])]
+readGenesetFile :: FilePath -> IO [(Entity, [Entity])]
 --
 readGenesetFile fp = parseGenesetFile <$> B.readFile fp
+
+-- | Converts the given ByteString list into Entity Term and Gene types. The
+-- | input list of ByteStrings should be three elements long: term id, term
+-- | name and ode_gene_ids which are separated by '|'.
+--
+--toAnnotation :: [ByteString] -> (ByteString, [Gene])
+toAnnotation :: [ByteString] -> (Entity, [Entity])
+--
+toAnnotation [a, b, c] =  (ETerm $! Term a b, geneSplit)
+    where
+        toInt = fst . fromMaybe (0, "") . B.readInt
+        geneSplit = map (EGene . Gene . toInt) $! B.split '|' b
+toAnnotation _ = (Invalid, [])
+
+-- | Parses the contents of an annotation file.
+--
+--parseAnnotationFile :: ByteString -> [(ByteString, [Gene])]
+parseAnnotationFile :: ByteString -> [(Entity, [Entity])]
+--
+parseAnnotationFile = map (toAnnotation . B.split '\t') . removeComments .
+                      removeEmpties . B.lines
+
+-- | Reads and parses the annotation file.
+--
+readAnnotationFile :: FilePath -> IO [(Entity, [Entity])]
+--
+readAnnotationFile fp = parseAnnotationFile <$> B.readFile fp
 
