@@ -65,9 +65,7 @@ updateAdjacencyMatrix u im ((e1, e2):es) m
     | u = updateAdjacencyMatrix u im es $! setElement e2 e1 $! setElement e1 e2 m
     | otherwise = updateAdjacencyMatrix u im es $! setElement e1 e2 m
     where
-        fromMaybe (Just x) = x
-        getIndex e = fromMaybe $ M.lookup e im
-        setElement a b m' = MA.setElem 1.0 (getIndex a, getIndex b) m'
+        setElement a b = MA.setElem 1.0 (getIndex a im, getIndex b im)
 
 -- | Updates the an adjacency matrix with edges derived from the given list of
 -- | entity relationships. This function requires a 1:many mapping of entity 
@@ -81,9 +79,23 @@ updateAdjacencyMatrix' u im ((e1, e2):es) m
     | u = updateAdjacencyMatrix' u im es $! updateMatrix' e1 e2 $! updateMatrix e1 e2 m
     | otherwise = updateAdjacencyMatrix' u im es $! updateMatrix e1 e2 m
     where
-        fromMaybe (Just x) = x
-        getIndex e = fromMaybe $ M.lookup e im
-        setElement a b m' = MA.setElem 1.0 (getIndex a, getIndex b) m'
-        updateMatrix a bs m' = foldl' (\ac b -> setElement a b ac) m' bs
+        setElement a b = MA.setElem 1.0 (getIndex a im, getIndex b im)
+        updateMatrix a bs m' = foldl' (flip (setElement a)) m' bs
         updateMatrix' a bs m' = foldl' (\ac b -> setElement b a ac) m' bs
+
+--
+-- Some helper functions for the updateAdjacencyMatrix functions.
+--
+
+-- | Don't try this at home kids, it's a bad partial function.
+--
+fromMaybe :: Maybe a -> a
+--
+fromMaybe (Just x) = x
+
+-- | Don't do this either.
+--
+getIndex :: Entity -> Map Entity Int -> Int
+--
+getIndex e = fromMaybe . M.lookup e
 

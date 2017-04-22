@@ -49,12 +49,6 @@ normalizeColumns m = transpose $ MA.fromLists $ normalize [1 .. MA.ncols m]
     where
         normalize = fmap (l1Normalization . (\i -> V.toList $ MA.getCol i m))
 
-normalizeOutDegrees :: Fractional a => Matrix a -> Matrix a
---
-normalizeOutDegrees m = MA.fromLists $ 
-                        (\v -> fmap (/ sum v) v) <$>
-                        fmap (\i -> V.toList $ MA.getRow i m) [1 .. MA.nrows m]
-
 -- | Calculates the the initial proximity vector using a seed and matrix.
 -- | Argument i is a seed node from which to start the search and the matrix is
 -- | used to retrieve the number of nodes in the graph.
@@ -113,3 +107,4 @@ l2 vs = fmap (/ norm) vs
     where 
         norm = sqrt $ sum $ fmap (\x -> x*x) vs
 -}
+

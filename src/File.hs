@@ -4,7 +4,6 @@
 -- | vers: 0.1.0
 -- | auth: TR
 
-{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -13,10 +12,8 @@ module File where
 import Control.Applicative      ((<$>))
 import Data.Maybe               (fromMaybe)
 import Data.ByteString.Char8    (ByteString)
-import Data.Map.Strict          (Map)
 
 import qualified Data.ByteString.Char8 as B
-import qualified Data.Map.Strict as M
 
 import Types
 
