@@ -43,7 +43,9 @@ data EntityNode = GeneNode Gene
                 | TermNode Term 
                 deriving (Show, Eq, Ord)
 
-data EntityNode' = GeneNode' Int Gene | GeneSetNode' Int GeneSet | TermNode' Int Term
+data EntityNode' = GeneNode' Int Gene 
+                 | GeneSetNode' Int GeneSet 
+                 | TermNode' Int Term
 
 -- GeneSet equivalence and order based soley on their gs_ids
 --
