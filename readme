@@ -1,9 +1,8 @@
-GSE README
+WALKER README
 
 ABOUT
 
-	GeneWeaver Gene Set Enrichment. Determines ontology concept
-	overrepresentation and significance for GeneWeaver gene sets.
+	Random walk with restart (RWR) implementation.
 
 REQUIREMENTS
 	

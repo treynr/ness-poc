@@ -102,7 +102,8 @@ toAnnotation [a, b, c] =  (ETerm $! Term a b, geneSplit)
     where
         toInt = fst . fromMaybe (0, "") . B.readInt
         geneSplit = map (EGene . Gene . toInt) $! B.split '|' b
-toAnnotation _ = (0, Invalid, [])
+--toAnnotation _ = (0, Invalid, [])
+toAnnotation _ = (Invalid, [])
 
 -- | Parses the contents of an annotation file.
 --

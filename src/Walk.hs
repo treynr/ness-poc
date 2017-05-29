@@ -87,7 +87,7 @@ calculateConvergence pv pc = l1Norm $ zipWith (-) pv pc
 -- | 1. Column normalize the matrix
 -- | 2. Generate the initial proximity vector
 -- | 3. Calculate the next proximity vector
--- | 4. Check for conversion
+-- | 4. Check for convergence
 -- | 5. Rinse, repeat
 --
 -- | Performs a recursive graph walk on the graph m (adjacency matrix) 
