@@ -92,6 +92,7 @@ calculateConvergence pv pc = l1Norm $ zipWith (-) pv pc
 --
 -- | Performs a recursive graph walk on the graph m (adjacency matrix) 
 -- | starting from a seed node s.
+walk :: Matrix Double -> Int -> [Double]
 --
 walk m s = walk' p0 $ calculateProxVector p0 p0 normMatrix
     where

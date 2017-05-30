@@ -12,12 +12,26 @@
 module Main where
 
 import Control.Applicative      ((<$>))
+import Control.DeepSeq          (($!!))
 import Control.Monad            (when)
+import Data.ByteString.Char8    (ByteString)
 import Data.List                (intercalate)
+import Data.Map.Strict          (Map)
+import Data.Matrix              (Matrix)
 import Data.Time                (getCurrentTime, toGregorian, utctDay)
 import System.Console.CmdArgs
 import System.Environment       (getArgs, withArgs)
 import System.Exit              (ExitCode(..), exitWith)
+
+import qualified Data.ByteString.Char8  as B
+import qualified Data.Map.Strict        as M
+-- Fucking name collision
+import qualified System.Console.CmdArgs as C
+
+import File
+import Graph
+import Types
+import Walk
 
 -- Cmd-line option shit
 --
@@ -29,6 +43,8 @@ data Options = Options {
       , genesets :: FilePath
         -- Annotation file
       , annotations :: FilePath
+        -- File containing term-term relationships from an ontology
+      , ontology :: FilePath
         -- Required argument: the output file data is saved to
       , output :: FilePath
 
@@ -47,7 +63,7 @@ _INFO :: String
 _INFO = _EXEC ++ " version " ++ _VERS
 
 _DESC :: String
-_DESC = "Random walk with restart (RWR) among ontology concepts"
+_DESC = "Ontology concept similarity using entity graphs and random walk with restart"
 
 -- Data export tag
 -- Attaches program version info and command line arguments for
@@ -79,15 +95,17 @@ _DTAG cols = do
 optEdges = "Add the contents of the edge list file to the entity graph"
 optGenesets = "Add the contents of the gene set file to the entity graph"
 optAnnotations = "Add the contents of the annotation file to the entity graph"
+optOntology = "Add ontology relationships to the entity graph"
 argOutput = "File to save data to"
 
 ---- Fills in info about the program's options.
 --
 options :: Options
 options = Options {
-      edges = def &= explicit &= name "edges" &= typFile &= help optEdges
-    , genesets = def &= explicit &= name "genesets" &= typFile &= help optGenesets
-    , annotations = def &= explicit &= name "annotations" &= typFile &= help optAnnotations
+      edges = def &= explicit &= C.name "edges" &= typFile &= help optEdges
+    , genesets = def &= explicit &= C.name "genesets" &= typFile &= help optGenesets
+    , annotations = def &= explicit &= C.name "annotations" &= typFile &= help optAnnotations
+    , ontology = def &= explicit &= C.name "ontology" &= typFile &= help optOntology
     , output = def &= argPos 0 &= typFile
 }
 
@@ -98,10 +116,10 @@ getOptions :: IO Options
 getOptions = cmdArgs $ options
     -- &= verbosityArgs [explicit, name "verbose", name "v"] []
     &= verbosity
-    &= versionArg [explicit, name "version", summary _INFO]
+    &= versionArg [explicit, C.name "version", summary _INFO]
     &= summary (_INFO)
     &= help _DESC
-    &= helpArg [explicit, name "help", name "h"]
+    &= helpArg [explicit, C.name "help", C.name "h"]
     &= program _NAME
 
 main :: IO ()
@@ -131,8 +149,64 @@ optionHandler opts@Options{..}  = do
           edges = edges
         , genesets = genesets
         , annotations = annotations
+        , ontology = ontology
         , output = output
     }
+
+handleEdges :: FilePath -> IO [(Entity, Entity)]
+--
+handleEdges "" = return []
+handleEdges fp = readEdgeListFile fp
+
+handleGenesets :: FilePath -> IO [(Entity, [Entity])]
+--
+handleGenesets "" = return []
+handleGenesets fp = readGenesetFile fp
+
+handleAnnotations :: FilePath -> IO [(Entity, Entity)]
+--
+handleAnnotations "" = return []
+handleAnnotations fp = readAnnotationFile fp
+
+handleOntology :: FilePath -> IO [(Entity, Entity)]
+--
+handleOntology "" = return []
+handleOntology fp = readTermFile fp
+
+writeWalkedRelations :: FilePath -> Map Entity Int -> [Double] -> Entity -> [Entity] -> IO ()
+--
+writeWalkedRelations fp m ds e es = 
+    B.appendFile fp (serializeWalkScores sims) >> B.appendFile fp "\n"
+    where
+        edexs = fmap (\e' -> (e', M.findWithDefault 0 e' m)) es
+        sims = fmap (\(e', i) -> (e, e', ds !! i)) edexs
+
+pairwiseWalk :: FilePath -> Matrix Double -> Map Entity Int -> [Entity] -> IO ()
+--
+pairwiseWalk _ _ _ [] = return ()
+pairwiseWalk _ _ _ (e:[]) = return ()
+pairwiseWalk fp ma m (e:es) 
+    | eindex == 0 = pairwiseWalk fp ma m es
+    | otherwise = writeWalkedRelations fp m walkSims e es >> pairwiseWalk fp ma m es
+    where
+        eindex = M.findWithDefault 0 e m
+        walkSims = walk ma eindex
+
+onlyTerms :: [Entity] -> [Entity]
+--
+onlyTerms = filter isTerm
+    where
+        isTerm (ETerm _) = True
+        isTerm _ = False
+
+writeOutputHeader :: FilePath -> IO ()
+--
+writeOutputHeader fp = do 
+
+    tag <- B.pack <$> _DTAG "NODE_FROM NODE_TO AFFINITY"
+
+    B.writeFile fp tag
+    B.appendFile fp "\n"
 
 ---- Where all the execution magic happens. 
 --
@@ -141,6 +215,40 @@ exec opts@Options{..} = do
 
     -- Verbosity argument
     verb <- isLoud
+
+    putStrLn "Reading files..."
+
+    fEdges <- handleEdges edges
+    fGenesets <- handleGenesets genesets
+    fAnnotations <- handleAnnotations annotations
+    fTerms <- handleOntology ontology
+
+    putStrLn $ show $ length fEdges
+    putStrLn $ show $ length fGenesets
+    putStrLn $ show $ length fAnnotations
+    putStrLn $ show $ length fTerms
+    {-
+    entities <- flattenEntities <$> (handleEdges edges)
+                                    (handleGenesets genesets)
+                                    (handleAnnotations annotations)
+                                    (handleOntology ontology)
+    -}
+
+    putStrLn "Building entity graph..."
+
+    let entities = flattenEntities fEdges fGenesets fAnnotations fTerms
+    let entityIndex = tagEntities entities
+    let graphMatrix = updateAdjacencyMatrix False entityIndex fEdges $!!
+                      updateAdjacencyMatrix' True entityIndex fGenesets $!!
+                      updateAdjacencyMatrix False entityIndex fAnnotations $!!
+                      updateAdjacencyMatrix False entityIndex fTerms $!!
+                      makeAdjacencyMatrix entities
+
+    putStrLn "Walking the graph..."
+
+    writeOutputHeader output 
+
+    pairwiseWalk output graphMatrix entityIndex $!! onlyTerms entities
 
     return ()
 

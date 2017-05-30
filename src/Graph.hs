@@ -5,6 +5,7 @@
 -- | auth: TR
 
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Graph where
 
@@ -44,6 +45,20 @@ convertEntities gs gss ts = gs' ++ gss' ++ ts'
         gs' = fmap EGene $! removeDuplicates gs
         gss' = fmap EGeneSet $! removeDuplicates gss
         ts' = fmap ETerm $! removeDuplicates ts
+
+-- | Takes in entity relationships from all three input types (edge lists,
+-- | genesets, and annotations) and converts them into a single list of
+-- | entities with duplicates removed. The resulting list can then be used in 
+-- | the creation of the Entity graph.
+--
+flattenEntities :: [(Entity, Entity)] -> [(Entity, [Entity])] -> [(Entity, Entity)] -> [(Entity, Entity)] -> [Entity]
+--
+flattenEntities es gs as ts = removeDuplicates $ es' ++ gs' ++ as' ++ ts'
+    where
+        es' = (fmap fst es) ++ (fmap snd es)
+        gs' = (fmap fst gs) ++ (concat $ fmap snd gs)
+        as' = (fmap fst as) ++ (fmap snd as)
+        ts' = (fmap fst ts) ++ (fmap snd ts)
 
 -- | Creates a zero filled, N x N adjacency matrix using the given list of
 -- | entities.
@@ -98,4 +113,25 @@ fromMaybe (Just x) = x
 getIndex :: Entity -> Map Entity Int -> Int
 --
 getIndex e = fromMaybe . M.lookup e
+
+--
+-- tests
+--
+
+egene0 = EGene (Gene 0)
+egene1 = EGene (Gene 1)
+egene2 = EGene (Gene 2)
+egene3 = EGene (Gene 3)
+egs0 = EGeneSet (GeneSet 10 0)
+egs1 = EGeneSet (GeneSet 11 0)
+egs2 = EGeneSet (GeneSet 12 0)
+egs3 = EGeneSet (GeneSet 13 0)
+eterm0 = ETerm (Term "T:20" "20")
+eterm1 = ETerm (Term "T:21" "21")
+eterm2 = ETerm (Term "T:22" "22")
+eterm3 = ETerm (Term "T:23" "23")
+
+sampleEdges = [(egene0, egene1), (egene0, egene2), (egene2, egene3), (egene3, egene0)]
+sampleGenesets = [(egs0, [egene0, egene1]), (egs1, [egene0, egene2, egene3]), (egs2, [])]
+sampleAnnos = [(eterm0, egene1), (eterm0, egene2), (eterm1, egene3), (eterm2, egene0)]
 

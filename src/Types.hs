@@ -5,30 +5,34 @@
 -- | auth: TR
 
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 module Types where
 
+import GHC.Generics (Generic)
+import Control.DeepSeq
 import Data.ByteString.Char8 (ByteString)
 
 data Gene = Gene {
 
     ode :: !Int
 
-} deriving (Show, Eq, Ord)
+} deriving (Show, Eq, Ord, Generic, NFData)
 
 data GeneSet = GeneSet {
 
       gsid      :: !Int
     , species   :: !Int
 
-} deriving (Show)
+} deriving (Show, Generic, NFData)
 
 data Term = Term {
 
       uid   :: !ByteString
     , name  :: !ByteString
 
-} deriving (Show)
+} deriving (Show, Generic, NFData)
 
 type Annotation = (ByteString, [Gene])
 
@@ -36,12 +40,12 @@ data Entity = EGene Gene
             | EGeneSet GeneSet
             | ETerm Term
             | Invalid
-            deriving (Show, Eq, Ord)
+            deriving (Show, Eq, Ord, Generic, NFData)
 
 data EntityNode = GeneNode Gene 
                 | GeneSetNode GeneSet 
                 | TermNode Term 
-                deriving (Show, Eq, Ord)
+                deriving (Show, Eq, Ord, Generic, NFData)
 
 data EntityNode' = GeneNode' Int Gene 
                  | GeneSetNode' Int GeneSet 

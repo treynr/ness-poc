@@ -21,10 +21,9 @@ library
                      , Types
                      , Walk
   build-depends:       base >= 4.7 && < 5
-                     , algebraic-graphs
                      , bytestring
                      , containers
-                     , fgl
+                     , deepseq
                      , matrix
                      , vector
   default-language:    Haskell2010
@@ -34,7 +33,10 @@ executable walker
   main-is:             Main.hs
   ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N -O3
   build-depends:       base
+                     , bytestring
+                     , containers
                      , cmdargs
+                     , matrix
                      , time
                      , walker
   default-language:    Haskell2010

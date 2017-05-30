@@ -10,6 +10,7 @@
 module File where
 
 import Control.Applicative      ((<$>))
+import Control.DeepSeq          (($!!))
 import Data.Maybe               (fromMaybe)
 import Data.ByteString.Char8    (ByteString)
 
@@ -39,11 +40,11 @@ removeComments = filter (\b -> B.index b 0 /= '#')
 --parseEdgeListFile :: ByteString -> [(Int, Entity, Entity)]
 parseEdgeListFile :: ByteString -> [(Entity, Entity)]
 --
-parseEdgeListFile bs = map (tuplify . B.split '\t') 
+parseEdgeListFile bs = id $!! map (tuplify . B.split '\t') 
                        (removeComments $! removeEmpties $! B.lines bs)
     where
         toInt = fst . fromMaybe (0, "") . B.readInt
-        tuplify (a:b:_) = (EGene $ Gene $ toInt a, EGene $ Gene $ toInt b)
+        tuplify (a:b:_) = (EGene $! Gene $! toInt a, EGene $! Gene $! toInt b)
         --tuplify (s:a:b:_) = (toInt s, EGene $ Gene $ toInt a, EGene $ Gene $ toInt b)
 
 -- | Reads and parses the edge list file.
@@ -67,7 +68,7 @@ toGeneset :: [ByteString] -> (Entity, [Entity])
 toGeneset [a, b, c] =  (EGeneSet $! GeneSet (toInt a) (toInt b), geneSplit)
     where
         toInt = fst . fromMaybe (0, "") . B.readInt
-        geneSplit = map (EGene . Gene . toInt) $ B.split '|' c
+        geneSplit = map (EGene . Gene . toInt) $! B.split '|' c
 toGeneset _ = (Invalid, [])
 
 -- | Parses the contents of a gene set file into a list of sets and associated
@@ -75,8 +76,8 @@ toGeneset _ = (Invalid, [])
 --
 parseGenesetFile :: ByteString -> [(Entity, [Entity])]
 --
-parseGenesetFile = map (toGeneset . B.split '\t') . removeComments . 
-                   removeEmpties . B.lines
+parseGenesetFile bs = id $!! map (toGeneset . B.split '\t') $! removeComments $!
+                      removeEmpties $! B.lines bs
 
 -- | Reads and parses the gene set file.
 --
@@ -93,23 +94,18 @@ readGenesetFile fp = parseGenesetFile <$> B.readFile fp
 -- | So the input list of ByteStrings should be three elements long.
 -- | ode_gene_ids are separated by '|'.
 --
---toAnnotation :: [ByteString] -> (ByteString, [Gene])
+{-
 toAnnotation :: [ByteString] -> (Entity, [Entity])
---toAnnotation :: [ByteString] -> (Int, Entity, [Entity])
 --
 toAnnotation [a, b, c] =  (ETerm $! Term a b, geneSplit)
---toAnnotation [s, a, b, c] =  (toInt s, ETerm $! Term a b, geneSplit)
     where
         toInt = fst . fromMaybe (0, "") . B.readInt
         geneSplit = map (EGene . Gene . toInt) $! B.split '|' b
---toAnnotation _ = (0, Invalid, [])
 toAnnotation _ = (Invalid, [])
 
 -- | Parses the contents of an annotation file.
 --
---parseAnnotationFile :: ByteString -> [(ByteString, [Gene])]
 parseAnnotationFile :: ByteString -> [(Entity, [Entity])]
---parseAnnotationFile :: ByteString -> [(Int, Entity, [Entity])]
 --
 parseAnnotationFile = map (toAnnotation . B.split '\t') . removeComments .
                       removeEmpties . B.lines
@@ -117,7 +113,72 @@ parseAnnotationFile = map (toAnnotation . B.split '\t') . removeComments .
 -- | Reads and parses the annotation file.
 --
 readAnnotationFile :: FilePath -> IO [(Entity, [Entity])]
---readAnnotationFile :: FilePath -> IO [(Int, Entity, [Entity])]
 --
 readAnnotationFile fp = parseAnnotationFile <$> B.readFile fp
+-}
+-- |    (0)     (1)         (2)           (3)
+-- |    TERM_ID ODE_GENE_ID EVIDENCE_CODE TAXON_ID
+--
+toAnnotation :: [ByteString] -> (Entity, Entity)
+--
+toAnnotation [t, g, _, _] =  (term, gene)
+    where
+        toInt = fst . fromMaybe (0, "") . B.readInt
+        term = ETerm $! Term t ""
+        gene = EGene $! Gene $! toInt g
+toAnnotation _ = (Invalid, Invalid)
+
+-- | Parses the contents of an annotation file, converting terms and
+-- | ode_gene_ids into their respective entities and storing the relationship 
+-- | as a tuple.
+--
+parseAnnotationFile :: ByteString -> [(Entity, Entity)]
+--
+parseAnnotationFile bs = id $!! noInvalid $! map (toAnnotation . B.split '\t') $!
+                      removeComments $! removeEmpties $! B.lines bs
+    where
+        noInvalid = filter (\(a, b) -> a /= Invalid && b /= Invalid)
+
+-- | Reads and parses the annotation file.
+--
+readAnnotationFile :: FilePath -> IO [(Entity, Entity)]
+--
+readAnnotationFile fp = parseAnnotationFile <$> B.readFile fp
+
+-- | Parses the contents of an edge list file into a list of gene-gene edges
+-- | and converts the Genes into Entity types.
+-- | The row format for edge list files is:
+-- |    
+-- |    (0)       (1)
+-- |    NODE_FROM NODE_TO
+--
+parseTermFile :: ByteString -> [(Entity, Entity)]
+--
+parseTermFile bs = id $!! map (tuplify . B.split '\t') 
+                       (removeComments $! removeEmpties $! B.lines bs)
+    where
+        tuplify (a:b:_) = (ETerm $ Term a "", ETerm $ Term b "")
+
+-- | Reads and parses the edge list file.
+--
+readTermFile :: FilePath -> IO [(Entity, Entity)]
+--
+readTermFile fp = parseTermFile <$> B.readFile fp
+
+serializeEntity :: Entity -> ByteString
+--
+serializeEntity (EGene g) = B.pack $ show $ ode g
+serializeEntity (EGeneSet g) = B.pack $ show $ gsid g
+serializeEntity (ETerm t) = uid t
+serializeEntity (Invalid) = "Invalid Entity"
+
+serializeWalkScore :: (Entity, Entity, Double) -> ByteString
+--
+serializeWalkScore (e, f, d) = 
+    B.intercalate "\t" [serializeEntity e, serializeEntity f, B.pack $ show d]
+
+serializeWalkScores :: [(Entity, Entity, Double)] -> ByteString
+--
+serializeWalkScores = B.intercalate "\n" . fmap serializeWalkScore
+
 
