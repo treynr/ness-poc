@@ -6,18 +6,28 @@
 
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Graph where
 
 import Data.List        (foldl')
 import Data.Map.Strict  (Map)
 import Data.Matrix      (Matrix, zero)
+import Data.Vector      (Vector)
 
-import qualified Data.Map.Strict as M
-import qualified Data.Matrix as MA
-import qualified Data.Set as S
+import qualified Data.Map.Strict    as M
+import qualified Data.Matrix        as MA
+import qualified Data.Set           as S
+import qualified Data.Vector        as V
+import qualified Numeric.LinearAlgebra.Data as LD
 
 import Types
+
+convertMatrix :: Matrix Double -> LD.Matrix Double
+--
+convertMatrix m = LD.fromLists asList
+    where
+        asList = fmap ((\i -> V.toList $ MA.getRow i m)) [1 .. MA.nrows m]
 
 -- | Removes duplicates from the list by inserting them into a Set and then
 -- | converting back to a list.
@@ -26,6 +36,12 @@ removeDuplicates :: Ord a => [a] -> [a]
 --
 removeDuplicates = S.toList . S.fromList
 
+-- holy shit this is gross
+removeDuplicates' :: Ord a => Vector a -> Vector a
+--
+removeDuplicates' = V.fromList . S.toList . S.fromList . V.toList
+
+{-
 -- | Given a list of entities, this function marks them with unique integer IDs
 -- | that are 1-indexed for use in an adjacency matrix and returns the mapping
 -- | of Entities -> IDs.
@@ -33,6 +49,17 @@ removeDuplicates = S.toList . S.fromList
 tagEntities :: [Entity] -> Map Entity Int
 --
 tagEntities es = M.fromList $! zip es [1 .. length es]
+-}
+
+-- | Given a list of entities, this function marks them with unique integer IDs
+-- | that are 1-indexed for use in an adjacency matrix and returns the mapping
+-- | of Entities -> IDs.
+--
+tagEntities :: Vector Entity -> Map Entity Int
+--
+--tagEntities es = M.fromList $! zip es [1 .. V.length es]
+-- tagEntities es = M.fromList $! V.toList $! V.zip es $! V.iterateN (V.length es) (+1) 1 -- [1 .. V.length es]
+tagEntities es = M.fromList $! V.toList $! V.zip es $! V.iterateN (V.length es) (+1) 0 -- [1 .. V.length es]
 
 -- | Takes in genes, sets, and terms, removes duplicates from each list and
 -- | converts them into Entity types.
@@ -46,6 +73,7 @@ convertEntities gs gss ts = gs' ++ gss' ++ ts'
         gss' = fmap EGeneSet $! removeDuplicates gss
         ts' = fmap ETerm $! removeDuplicates ts
 
+{-
 -- | Takes in entity relationships from all three input types (edge lists,
 -- | genesets, and annotations) and converts them into a single list of
 -- | entities with duplicates removed. The resulting list can then be used in 
@@ -59,7 +87,27 @@ flattenEntities es gs as ts = removeDuplicates $ es' ++ gs' ++ as' ++ ts'
         gs' = (fmap fst gs) ++ (concat $ fmap snd gs)
         as' = (fmap fst as) ++ (fmap snd as)
         ts' = (fmap fst ts) ++ (fmap snd ts)
+-}
 
+(<++>) = (V.++)
+
+-- | Takes in entity relationships from all three input types (edge lists,
+-- | genesets, and annotations) and converts them into a single list of
+-- | entities with duplicates removed. The resulting list can then be used in 
+-- | the creation of the Entity graph.
+--
+flattenEntities :: Vector (Entity, Entity) -> Vector (Entity, Vector Entity) -> 
+                   Vector (Entity, Entity) -> Vector (Entity, Entity) -> 
+                   Vector Entity
+--
+flattenEntities es gs as ts = removeDuplicates' $ es' <++> gs' <++> as' <++> ts'
+    where
+        es' = (V.map fst es) <++> (V.map snd es)
+        gs' = (V.map fst gs) <++> (V.concat $ V.toList $ V.map snd gs)
+        as' = (V.map fst as) <++> (V.map snd as)
+        ts' = (V.map fst ts) <++> (V.map snd ts)
+
+{-
 -- | Creates a zero filled, N x N adjacency matrix using the given list of
 -- | entities.
 --
@@ -68,7 +116,9 @@ makeAdjacencyMatrix :: [Entity] -> Matrix Double
 makeAdjacencyMatrix es = zero les les
     where
         les = length es
+-}
 
+{-
 -- | Updates the an adjacency matrix with edges derived from the given list of
 -- | entity relationships. If the boolean u is True, the matrix is updated with
 -- | undirected edges. 
@@ -97,6 +147,46 @@ updateAdjacencyMatrix' u im ((e1, e2):es) m
         setElement a b = MA.setElem 1.0 (getIndex a im, getIndex b im)
         updateMatrix a bs m' = foldl' (flip (setElement a)) m' bs
         updateMatrix' a bs m' = foldl' (\ac b -> setElement b a ac) m' bs
+-}
+
+-- | Creates a zero filled, N x N adjacency matrix using the given list of
+-- | entities.
+--
+makeAdjacencyMatrix :: Vector Entity -> Matrix Double
+--
+makeAdjacencyMatrix es = zero les les
+    where
+        les = V.length es
+
+-- | Updates the an adjacency matrix with edges derived from the given list of
+-- | entity relationships. If the boolean u is True, the matrix is updated with
+-- | undirected edges. 
+--
+updateAdjacencyMatrix :: Bool -> Map Entity Int -> Vector (Entity, Entity) -> 
+                         Matrix Double -> Matrix Double
+--
+updateAdjacencyMatrix u m es ma
+    | u = V.foldl (\ac (e1, e2) -> setElement e2 e1 $! setElement e1 e2 ac) ma es
+    | otherwise = V.foldl (\ac (e1, e2) -> setElement e1 e2 ac) ma es
+    where
+        setElement a b = MA.setElem 1.0 (getIndex a m, getIndex b m)
+
+-- | Updates the an adjacency matrix with edges derived from the given list of
+-- | entity relationships. This function requires a 1:many mapping of entity 
+-- | relationships. If the boolean u is True, the matrix is updated with
+-- | undirected edges. 
+--
+updateAdjacencyMatrix' :: Bool -> Map Entity Int -> 
+                          Vector (Entity, Vector Entity) -> Matrix Double -> 
+                          Matrix Double
+--
+updateAdjacencyMatrix' u m es ma
+    | u = V.foldl (\ac (e1, e2) -> updateMatrix' e1 e2 $! updateMatrix e1 e2 ac) ma es --updateAdjacencyMatrix' u im es $! updateMatrix' e1 e2 $! updateMatrix e1 e2 m
+    | otherwise = V.foldl (\ac (e1, e2) -> updateMatrix e1 e2 ac) ma es --updateAdjacencyMatrix' u im es $! updateMatrix e1 e2 m
+    where
+        setElement a b = MA.setElem 1.0 (getIndex a m, getIndex b m)
+        updateMatrix a bs ma' = V.foldl' (flip (setElement a)) ma' bs
+        updateMatrix' a bs ma' = V.foldl' (\ac b -> setElement b a ac) ma' bs
 
 --
 -- Some helper functions for the updateAdjacencyMatrix functions.

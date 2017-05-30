@@ -25,6 +25,15 @@ sampleGraph = MA.fromLists [ [0.0, 1.0, 0.0, 1.0, 0.0, 1.0]
                            , [0.0, 1.0, 0.0, 0.0, 0.0, 0.0]
                            , [0.0, 1.0, 0.0, 1.0, 0.0, 0.0] ]
 
+--sampleV :: V.Vector Double
+--sampleV = V.fromList [1,2,3,4,5,6]
+sampleV :: [Double]
+sampleV = [1,2,3,4,5,6]
+sampleV1 :: [Double]
+sampleV1 = [1,2,1,1,3,4]
+sampleV2 :: [Double]
+sampleV2 = [2,2,1,1,1,2]
+
 -- | Calculates the L1-norm for the given vector.
 --
 l1Norm :: (Num a, Traversable t) => t a -> a
@@ -100,7 +109,7 @@ walk m s = walk' p0 $ calculateProxVector p0 p0 normMatrix
         p0 = initialProxVector s normMatrix
         hasConverged p c = calculateConvergence p c < threshold
         walk' prev cur
-            | hasConverged prev cur = walk' cur $ calculateProxVector cur p0 normMatrix
+            | not $ hasConverged prev cur = walk' cur $ calculateProxVector cur p0 normMatrix
             | otherwise = cur
 
 {-

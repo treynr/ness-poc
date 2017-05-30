@@ -8,30 +8,35 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Main where
 
 import Control.Applicative      ((<$>))
-import Control.DeepSeq          (($!!))
+import Control.DeepSeq          (($!!), deepseq)
 import Control.Monad            (when)
 import Data.ByteString.Char8    (ByteString)
 import Data.List                (intercalate)
 import Data.Map.Strict          (Map)
 import Data.Matrix              (Matrix)
 import Data.Time                (getCurrentTime, toGregorian, utctDay)
+import Data.Vector              (Vector, (!))
 import System.Console.CmdArgs
 import System.Environment       (getArgs, withArgs)
 import System.Exit              (ExitCode(..), exitWith)
 
 import qualified Data.ByteString.Char8  as B
-import qualified Data.Map.Strict        as M
 -- Fucking name collision
 import qualified System.Console.CmdArgs as C
+import qualified Data.Map.Strict        as M
+import qualified Data.Vector            as V
+import qualified Numeric.LinearAlgebra.Data as LD
 
 import File
 import Graph
 import Types
 import Walk
+import Walk2
 
 -- Cmd-line option shit
 --
@@ -153,26 +158,35 @@ optionHandler opts@Options{..}  = do
         , output = output
     }
 
-handleEdges :: FilePath -> IO [(Entity, Entity)]
+--handleEdges :: FilePath -> IO [(Entity, Entity)]
+handleEdges :: FilePath -> IO (Vector (Entity, Entity))
 --
-handleEdges "" = return []
+--handleEdges "" = return []
+handleEdges "" = return V.empty
 handleEdges fp = readEdgeListFile fp
 
-handleGenesets :: FilePath -> IO [(Entity, [Entity])]
+--handleGenesets :: FilePath -> IO [(Entity, [Entity])]
+handleGenesets :: FilePath -> IO (Vector (Entity, Vector Entity))
 --
-handleGenesets "" = return []
+--handleGenesets "" = return []
+handleGenesets "" = return V.empty
 handleGenesets fp = readGenesetFile fp
 
-handleAnnotations :: FilePath -> IO [(Entity, Entity)]
+--handleAnnotations :: FilePath -> IO [(Entity, Entity)]
+handleAnnotations :: FilePath -> IO (Vector (Entity, Entity))
 --
-handleAnnotations "" = return []
+--handleAnnotations "" = return []
+handleAnnotations "" = return V.empty
 handleAnnotations fp = readAnnotationFile fp
 
-handleOntology :: FilePath -> IO [(Entity, Entity)]
+--handleOntology :: FilePath -> IO [(Entity, Entity)]
+handleOntology :: FilePath -> IO (Vector (Entity, Entity))
 --
-handleOntology "" = return []
+--handleOntology "" = return []
+handleOntology "" = return V.empty
 handleOntology fp = readTermFile fp
 
+{-
 writeWalkedRelations :: FilePath -> Map Entity Int -> [Double] -> Entity -> [Entity] -> IO ()
 --
 writeWalkedRelations fp m ds e es = 
@@ -191,10 +205,42 @@ pairwiseWalk fp ma m (e:es)
     where
         eindex = M.findWithDefault 0 e m
         walkSims = walk ma eindex
+        -}
 
-onlyTerms :: [Entity] -> [Entity]
+writeWalkedRelations :: FilePath -> Map Entity Int -> Vector Double -> Entity -> Vector Entity -> IO ()
 --
-onlyTerms = filter isTerm
+writeWalkedRelations fp m ds e es = 
+    B.appendFile fp (serializeWalkScores sims) >> B.appendFile fp "\n"
+    where
+        edexs = V.map (\e' -> (e', M.findWithDefault 0 e' m)) es
+        sims = V.map (\(e', i) -> (e, e', ds ! i)) edexs
+
+-- | don't do this at home kids
+--
+uncons :: Vector a -> (a, Vector a)
+--
+uncons v = (V.unsafeHead v, V.unsafeTail v)
+
+--pairwiseWalk :: FilePath -> Matrix Double -> Map Entity Int -> Vector Entity -> IO ()
+pairwiseWalk :: FilePath -> LD.Matrix Double -> Map Entity Int -> Vector Entity -> IO ()
+--
+--pairwiseWalk _ _ _ [] = return ()
+--pairwiseWalk _ _ _ (e:[]) = return ()
+pairwiseWalk fp ma m (uncons -> (vhead, vtail))
+    | V.null vtail = return ()
+    | eindex == 0 = pairwiseWalk fp ma m vtail
+    | otherwise = writeWalkedRelations fp m walkSims vhead vtail >> pairwiseWalk fp ma m vtail
+    -- | otherwise = do
+    --     walk <- writeWalkedRelations fp m walkSims vhead vtail 
+    --     walk `deepseq` pairwiseWalk fp ma m vtail
+    where
+        eindex = M.findWithDefault 0 vhead m
+        walkSims = V.fromList $!! walk' ma eindex
+
+--onlyTerms :: [Entity] -> [Entity]
+onlyTerms :: Vector Entity -> Vector Entity
+--
+onlyTerms = V.filter isTerm
     where
         isTerm (ETerm _) = True
         isTerm _ = False
@@ -223,10 +269,11 @@ exec opts@Options{..} = do
     fAnnotations <- handleAnnotations annotations
     fTerms <- handleOntology ontology
 
-    putStrLn $ show $ length fEdges
-    putStrLn $ show $ length fGenesets
-    putStrLn $ show $ length fAnnotations
-    putStrLn $ show $ length fTerms
+    putStrLn $ show $ V.length fEdges
+    putStrLn $ show $ V.length fGenesets
+    putStrLn $ show $ V.length fAnnotations
+    putStrLn $ show $ V.length fTerms
+
     {-
     entities <- flattenEntities <$> (handleEdges edges)
                                     (handleGenesets genesets)
@@ -237,18 +284,23 @@ exec opts@Options{..} = do
     putStrLn "Building entity graph..."
 
     let entities = flattenEntities fEdges fGenesets fAnnotations fTerms
+
+    putStrLn $ show $ V.length entities
+    
     let entityIndex = tagEntities entities
-    let graphMatrix = updateAdjacencyMatrix False entityIndex fEdges $!!
+    -- let graphMatrix = updateAdjacencyMatrix False entityIndex fEdges $!!
+    let graphMatrix = convertMatrix $!! updateAdjacencyMatrix False entityIndex fEdges $!!
                       updateAdjacencyMatrix' True entityIndex fGenesets $!!
                       updateAdjacencyMatrix False entityIndex fAnnotations $!!
                       updateAdjacencyMatrix False entityIndex fTerms $!!
                       makeAdjacencyMatrix entities
-
     putStrLn "Walking the graph..."
 
     writeOutputHeader output 
 
     pairwiseWalk output graphMatrix entityIndex $!! onlyTerms entities
+{-
+    -}
 
     return ()
 
