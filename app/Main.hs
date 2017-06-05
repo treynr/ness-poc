@@ -237,6 +237,19 @@ pairwiseWalk fp ma m (uncons -> (vhead, vtail))
         eindex = M.findWithDefault 0 vhead m
         walkSims = V.fromList $!! walk' ma eindex
 
+pairwiseWalk2 :: FilePath -> LD.Matrix Double -> Map Entity Int -> Vector Entity -> IO ()
+--
+pairwiseWalk2 fp ma m (uncons -> (vhead, vtail))
+    | V.null vtail = return ()
+    | eindex == 0 = pairwiseWalk fp ma m vtail
+    | otherwise = do
+        ws <- walkSims 
+        writeWalkedRelations fp m ws vhead vtail
+        pairwiseWalk fp ma m vtail
+    where
+        eindex = M.findWithDefault 0 vhead m
+        walkSims = V.fromList <$> walk'2 ma eindex
+
 --onlyTerms :: [Entity] -> [Entity]
 onlyTerms :: Vector Entity -> Vector Entity
 --
@@ -254,6 +267,8 @@ writeOutputHeader fp = do
     B.writeFile fp tag
     B.appendFile fp "\n"
 
+ofp = "/projects/chesler-lab/walk-out.txt"
+
 ---- Where all the execution magic happens. 
 --
 exec :: Options -> IO ()
@@ -262,7 +277,10 @@ exec opts@Options{..} = do
     -- Verbosity argument
     verb <- isLoud
 
+    B.writeFile ofp ""
+
     putStrLn "Reading files..."
+    B.appendFile ofp "Reading files...\n"
 
     fEdges <- handleEdges edges
     fGenesets <- handleGenesets genesets
@@ -282,6 +300,7 @@ exec opts@Options{..} = do
     -}
 
     putStrLn "Building entity graph..."
+    B.appendFile ofp "Buliding entity graph...\n"
 
     let entities = flattenEntities fEdges fGenesets fAnnotations fTerms
 
@@ -295,10 +314,11 @@ exec opts@Options{..} = do
                       updateAdjacencyMatrix False entityIndex fTerms $!!
                       makeAdjacencyMatrix entities
     putStrLn "Walking the graph..."
+    B.appendFile ofp "Walking the graph...\n"
 
     writeOutputHeader output 
 
-    pairwiseWalk output graphMatrix entityIndex $!! onlyTerms entities
+    pairwiseWalk2 output graphMatrix entityIndex $!! onlyTerms entities
 {-
     -}
 

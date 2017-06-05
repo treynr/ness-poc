@@ -112,6 +112,7 @@ walk m s = walk' p0 $ calculateProxVector p0 p0 normMatrix
             | not $ hasConverged prev cur = walk' cur $ calculateProxVector cur p0 normMatrix
             | otherwise = cur
 
+
 {-
 l2 vs = fmap (/ norm) vs
     where 

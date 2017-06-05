@@ -16,6 +16,7 @@ import Numeric.LinearAlgebra.Data
 
 --import qualified Data.Vector                as V
 import qualified Numeric.LinearAlgebra.Data as LD
+import System.IO
 
 alpha = 0.15
 alpha' = 1.0 - alpha
@@ -99,7 +100,7 @@ calculateProxVector' pv rv m = res + eps
 --
 calculateConvergence' :: Vector Double -> Vector Double -> Double
 --
-calculateConvergence' pv pc = l1Norm' $ pv - pc
+calculateConvergence' pv pc = l1Norm' $!! pv - pc
 
 -- | 1. Column normalize the matrix
 -- | 2. Generate the initial proximity vector
@@ -120,6 +121,21 @@ walk' m s = walk'' p0 $!! calculateProxVector' p0 p0 normMatrix
             | not $ hasConverged prev cur = walk'' cur $!! calculateProxVector' cur p0 normMatrix
             | otherwise = toList cur
 
+walk'2 :: Matrix Double -> Int -> IO [Double]
+--
+walk'2 m s = walk'' p0 $!! calculateProxVector' p0 p0 normMatrix
+    where
+        normMatrix = normalizeColumns' m
+        p0 = initialProxVector' s $!! rows normMatrix
+        hasConverged p c = calculateConvergence' p c < threshold
+        ps d = "convergence: " ++ show d
+        walk'' prev cur
+            | not $ hasConverged prev cur = 
+                -- putStrLn (ps $ calculateConvergence' prev cur) >> 
+                appendFile "/projects/chesler-lab/walk-out.txt" (ps $ calculateConvergence' prev cur) >> 
+                appendFile "/projects/chesler-lab/walk-out.txt" "\n" >>
+                (walk'' cur $!! calculateProxVector' cur p0 normMatrix)
+            | otherwise = return $!! toList cur
 {-
 -}
 {-
