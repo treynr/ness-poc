@@ -18,6 +18,7 @@ library
   ghc-options:         -Wall -O3
   exposed-modules:     File
                      , Graph
+                     , Graph2
                      , Types
                      , Walk
                      , Walk2

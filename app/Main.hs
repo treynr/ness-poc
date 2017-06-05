@@ -34,6 +34,7 @@ import qualified Numeric.LinearAlgebra.Data as LD
 
 import File
 import Graph
+import Graph2 (updateAdjacencyList, updateAdjacencyList')
 import Types
 import Walk
 import Walk2
@@ -307,14 +308,24 @@ exec opts@Options{..} = do
     putStrLn $ show $ V.length entities
     
     let entityIndex = tagEntities entities
+
+    entityIndex `deepseq` (B.appendFile ofp "Tagging entities...\n")
+
     -- let graphMatrix = updateAdjacencyMatrix False entityIndex fEdges $!!
-    let graphMatrix = convertMatrix $!! updateAdjacencyMatrix False entityIndex fEdges $!!
-                      updateAdjacencyMatrix' True entityIndex fGenesets $!!
-                      updateAdjacencyMatrix False entityIndex fAnnotations $!!
-                      updateAdjacencyMatrix False entityIndex fTerms $!!
-                      makeAdjacencyMatrix entities
+    --let graphMatrix = convertMatrix $!! updateAdjacencyMatrix False entityIndex fEdges $!!
+    --                  updateAdjacencyMatrix' True entityIndex fGenesets $!!
+    --                  updateAdjacencyMatrix False entityIndex fAnnotations $!!
+    --                  updateAdjacencyMatrix False entityIndex fTerms $!!
+    --                  makeAdjacencyMatrix entities
+    let graphMatrix = LD.assoc ((V.length entities), (V.length entities)) 0.0 $!! 
+                      updateAdjacencyList False entityIndex fEdges $!!
+                      updateAdjacencyList' True entityIndex fGenesets $!!
+                      updateAdjacencyList False entityIndex fAnnotations $!!
+                      updateAdjacencyList False entityIndex fTerms $!!
+                      []
     putStrLn "Walking the graph..."
-    B.appendFile ofp "Walking the graph...\n"
+    graphMatrix `deepseq` (B.appendFile ofp "Walking the graph...\n")
+    --B.appendFile ofp "Walking the graph...\n"
 
     writeOutputHeader output 
 
