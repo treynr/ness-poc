@@ -58,12 +58,16 @@ l1Normalization' vs = cmap (/ norm) vs
 -- | everything with vector functions
 -- | Performs column based L1 normalization on the entire matrix.
 --
+-- | For some fucking reason this code crashes when compiled and using large
+-- | graphs (90K nodes). I've isolated it to the fromColumns function.
+--
 normalizeColumns' :: Matrix Double -> Matrix Double
 --
-normalizeColumns' m = fromColumns $ normalize m
+--normalizeColumns' m = fromColumns $ normalize' m
+normalizeColumns' m = tr $ fromRows $ normalize' m
     where
         --normalize = fmap (l1Normalization . (\i -> V.toList $ MA.getCol i m))
-        normalize = fmap l1Normalization' . toColumns
+        normalize' = fmap l1Normalization' . toColumns
 
 -- | Calculates the the initial proximity vector using a seed and matrix.
 -- | Argument i is a seed node from which to start the search and the matrix is
@@ -121,9 +125,69 @@ walk' m s = walk'' p0 $!! calculateProxVector' p0 p0 normMatrix
             | not $ hasConverged prev cur = walk'' cur $!! calculateProxVector' cur p0 normMatrix
             | otherwise = toList cur
 
+{-
+-- | Calculates the L1-norm for the given vector.
+--
+l1Norm' :: Vector Double -> Double
+--
+-- l1Norm' = sum . cmap abs
+l1Norm' = sumElements . cmap abs
+
+-- | Performs L1 normalization on the given vector.
+--
+l1Normalization' ::  Vector Double -> Vector Double
+--
+l1Normalization' vs = cmap (/ norm) vs
+    where 
+        norm = l1Norm' vs
+
+-- | matrix by vector
+-- | m #> v
+-- | Determine whether to keep the vector -> list conversion or replace
+-- | everything with vector functions
+-- | Performs column based L1 normalization on the entire matrix.
+--
+normalizeColumns' :: Matrix Double -> Matrix Double
+--
+normalizeColumns' m = fromColumns $ normalize' m
+    where
+        --normalize = fmap (l1Normalization . (\i -> V.toList $ MA.getCol i m))
+        normalize' = fmap l1Normalization' . toColumns
+-}
+fuckshit1 = fromColumns . toColumns
+fuckshit2 = fromRows . toRows
+fuckshit3 = fromColumns . fmap (cmap (+2.0)) . toColumns
 walk'2 :: Matrix Double -> Int -> IO [Double]
 --
-walk'2 m s = walk'' p0 $!! calculateProxVector' p0 p0 normMatrix
+walk'2 m s = do -- walk'' p0 $!! calculateProxVector' p0 p0 normMatrix
+
+    let proxvect = calculateProxVector' p0 p0 normMatrix
+
+    putStrLn "beginning prox vector calculation"
+    putStrLn ("matrix size: " ++ (show $ size m))
+    putStrLn ("matrix rows: " ++ (show $ rows m))
+    putStrLn ("matrix cols: " ++ (show $ length $ toColumns m))
+    putStrLn ("matrix rows2: " ++ (show $ length $ toRows m))
+    putStrLn ("matrix shit2 rows: " ++ (show $ rows $ fuckshit2 m))
+    putStrLn ("matrix shit2 size: " ++ (show $ size $ fuckshit2 m))
+    -- crashes here
+    putStrLn ("matrix shit1 rows: " ++ (show $ rows $ fuckshit1 m))
+    putStrLn ("matrix shit1 size: " ++ (show $ size $ fuckshit1 m))
+    --
+    putStrLn ("matrix shit3 rows: " ++ (show $ rows $ fuckshit3 m))
+    putStrLn ("matrix shit3 size: " ++ (show $ size $ fuckshit3 m))
+    putStrLn ("norm matrix rows: " ++ (show $ rows normMatrix))
+    putStrLn ("norm matrix size: " ++ (show $ size normMatrix))
+    putStrLn ("p0 size: " ++ (show $ size p0))
+    appendFile "/projects/chesler-lab/walk-out.txt" "beginning prox vector calculation\n"
+    appendFile "/projects/chesler-lab/walk-out.txt" ("norm matrix rows: " ++ (show $ rows normMatrix))
+    appendFile "/projects/chesler-lab/walk-out.txt" ("\nnorm matrix size: " ++ (show $ size normMatrix))
+    appendFile "/projects/chesler-lab/walk-out.txt" ("\np0 size: " ++ (show $ size p0))
+
+    proxvect `deepseq` (appendFile "/projects/chesler-lab/walk-out.txt" "Calculated prox vector\n")
+
+    walk'' p0 proxvect
+
     where
         normMatrix = normalizeColumns' m
         p0 = initialProxVector' s $!! rows normMatrix
@@ -132,6 +196,7 @@ walk'2 m s = walk'' p0 $!! calculateProxVector' p0 p0 normMatrix
         walk'' prev cur
             | not $ hasConverged prev cur = 
                 -- putStrLn (ps $ calculateConvergence' prev cur) >> 
+                appendFile "/projects/chesler-lab/walk-out.txt" "hasn't converged\n" >>
                 appendFile "/projects/chesler-lab/walk-out.txt" (ps $ calculateConvergence' prev cur) >> 
                 appendFile "/projects/chesler-lab/walk-out.txt" "\n" >>
                 (walk'' cur $!! calculateProxVector' cur p0 normMatrix)

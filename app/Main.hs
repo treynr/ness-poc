@@ -244,6 +244,8 @@ pairwiseWalk2 fp ma m (uncons -> (vhead, vtail))
     | V.null vtail = return ()
     | eindex == 0 = pairwiseWalk fp ma m vtail
     | otherwise = do
+        putStrLn "doing a pairwise walk"
+        appendFile "/projects/chesler-lab/walk-out.txt" "doing a pairwise walk\n"
         ws <- walkSims 
         writeWalkedRelations fp m ws vhead vtail
         pairwiseWalk fp ma m vtail
@@ -309,7 +311,10 @@ exec opts@Options{..} = do
     
     let entityIndex = tagEntities entities
 
+    -- Strictness is enforced in the rest of the code since we will eventually
+    -- be using every single value (node) in the graph.
     entityIndex `deepseq` (B.appendFile ofp "Tagging entities...\n")
+    putStrLn $ show $ LD.size $ normalizeColumns' sampleGraph'
 
     -- let graphMatrix = updateAdjacencyMatrix False entityIndex fEdges $!!
     --let graphMatrix = convertMatrix $!! updateAdjacencyMatrix False entityIndex fEdges $!!
@@ -325,7 +330,6 @@ exec opts@Options{..} = do
                       []
     putStrLn "Walking the graph..."
     graphMatrix `deepseq` (B.appendFile ofp "Walking the graph...\n")
-    --B.appendFile ofp "Walking the graph...\n"
 
     writeOutputHeader output 
 

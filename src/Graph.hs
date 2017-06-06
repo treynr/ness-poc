@@ -166,8 +166,8 @@ updateAdjacencyMatrix :: Bool -> Map Entity Int -> Vector (Entity, Entity) ->
                          Matrix Double -> Matrix Double
 --
 updateAdjacencyMatrix u m es ma
-    | u = V.foldl (\ac (e1, e2) -> setElement e2 e1 $! setElement e1 e2 ac) ma es
-    | otherwise = V.foldl (\ac (e1, e2) -> setElement e1 e2 ac) ma es
+    | u = V.foldl' (\ac (e1, e2) -> setElement e2 e1 $! setElement e1 e2 ac) ma es
+    | otherwise = V.foldl' (\ac (e1, e2) -> setElement e1 e2 ac) ma es
     where
         setElement a b = MA.setElem 1.0 (getIndex a m, getIndex b m)
 
@@ -181,8 +181,8 @@ updateAdjacencyMatrix' :: Bool -> Map Entity Int ->
                           Matrix Double
 --
 updateAdjacencyMatrix' u m es ma
-    | u = V.foldl (\ac (e1, e2) -> updateMatrix' e1 e2 $! updateMatrix e1 e2 ac) ma es --updateAdjacencyMatrix' u im es $! updateMatrix' e1 e2 $! updateMatrix e1 e2 m
-    | otherwise = V.foldl (\ac (e1, e2) -> updateMatrix e1 e2 ac) ma es --updateAdjacencyMatrix' u im es $! updateMatrix e1 e2 m
+    | u = V.foldl' (\ac (e1, e2) -> updateMatrix' e1 e2 $! updateMatrix e1 e2 ac) ma es --updateAdjacencyMatrix' u im es $! updateMatrix' e1 e2 $! updateMatrix e1 e2 m
+    | otherwise = V.foldl' (\ac (e1, e2) -> updateMatrix e1 e2 ac) ma es --updateAdjacencyMatrix' u im es $! updateMatrix e1 e2 m
     where
         setElement a b = MA.setElem 1.0 (getIndex a m, getIndex b m)
         updateMatrix a bs ma' = V.foldl' (flip (setElement a)) ma' bs
