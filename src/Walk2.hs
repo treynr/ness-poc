@@ -59,7 +59,8 @@ l1Normalization' vs = cmap (/ norm) vs
 -- | Performs column based L1 normalization on the entire matrix.
 --
 -- | For some fucking reason this code crashes when compiled and using large
--- | graphs (90K nodes). I've isolated it to the fromColumns function.
+-- | graphs (90K nodes). I've isolated it to the fromColumns function and the
+-- | tr function.
 --
 normalizeColumns' :: Matrix Double -> Matrix Double
 --
@@ -155,21 +156,24 @@ normalizeColumns' m = fromColumns $ normalize' m
         normalize' = fmap l1Normalization' . toColumns
 -}
 fuckshit1 = fromColumns . toColumns
-fuckshit2 = fromRows . toRows
+--fuckshit2 = fromRows . toRows
 fuckshit3 = fromColumns . fmap (cmap (+2.0)) . toColumns
+fuckshitmaybe = LD.tr' . LD.fromRows . LD.toColumns
 walk'2 :: Matrix Double -> Int -> IO [Double]
 --
 walk'2 m s = do -- walk'' p0 $!! calculateProxVector' p0 p0 normMatrix
 
     let proxvect = calculateProxVector' p0 p0 normMatrix
 
-    putStrLn "beginning prox vector calculation"
-    putStrLn ("matrix size: " ++ (show $ size m))
-    putStrLn ("matrix rows: " ++ (show $ rows m))
-    putStrLn ("matrix cols: " ++ (show $ length $ toColumns m))
-    putStrLn ("matrix rows2: " ++ (show $ length $ toRows m))
-    putStrLn ("matrix shit2 rows: " ++ (show $ rows $ fuckshit2 m))
-    putStrLn ("matrix shit2 size: " ++ (show $ size $ fuckshit2 m))
+    --putStrLn "beginning prox vector calculation"
+    --putStrLn ("matrix size: " ++ (show $ size m))
+    --putStrLn ("matrix rows: " ++ (show $ rows m))
+    --putStrLn ("matrix cols: " ++ (show $ length $ toColumns m))
+    --putStrLn ("matrix rows2: " ++ (show $ length $ toRows m))
+    --putStrLn ("matrix shit2 rows: " ++ (show $ rows $ fuckshit2 m))
+    --putStrLn ("matrix shit2 size: " ++ (show $ size $ fuckshit2 m))
+    putStrLn ("matrix maybe rows: " ++ (show $ rows $ fuckshitmaybe m))
+    putStrLn ("matrix maybe size: " ++ (show $ size $ fuckshitmaybe m))
     -- crashes here
     putStrLn ("matrix shit1 rows: " ++ (show $ rows $ fuckshit1 m))
     putStrLn ("matrix shit1 size: " ++ (show $ size $ fuckshit1 m))

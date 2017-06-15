@@ -17,6 +17,7 @@ import Data.Vector              (Vector)
 
 import qualified Data.ByteString.Char8  as B
 import qualified Data.Vector            as V
+import qualified Data.Vector.Storable   as VS
 
 import Types
 
@@ -154,9 +155,11 @@ serializeWalkScore (e, f, d) =
 ----
 --serializeWalkScores = B.intercalate "\n" . fmap serializeWalkScore
 
-serializeWalkScores :: Vector (Entity, Entity, Double) -> ByteString
+--serializeWalkScores :: V.Vector (Entity, Entity, Double) -> ByteString
+serializeWalkScores :: [(Entity, Entity, Double)] -> ByteString
 --
-serializeWalkScores = B.intercalate "\n" . V.toList . V.map serializeWalkScore
+--serializeWalkScores = B.intercalate "\n" . V.toList . V.map serializeWalkScore
+serializeWalkScores = B.intercalate "\n" . fmap serializeWalkScore
 
 removeEmpties :: [ByteString] -> [ByteString]
 --
