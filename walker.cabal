@@ -47,6 +47,7 @@ executable walker
                      , deepseq
                      --, hmatrix
                      , matrix
+                     , split
                      , time
                      , vector
                      , walker

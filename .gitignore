@@ -14,3 +14,9 @@
 *.json
 *.tsv
 
+## Libraries
+*.o
+*.so
+
+## Executables
+walker

@@ -12,13 +12,12 @@
 
 module Main where
 
-import Control.Applicative      ((<$>))
 import Control.DeepSeq          (($!!), deepseq)
-import Control.Monad            (when)
-import Data.ByteString.Char8    (ByteString)
+import Control.Monad            (forM_, when)
 import Data.List                (intercalate, sortBy)
+import Data.List.Split          (splitOn)
 import Data.Map.Strict          (Map)
-import Data.Matrix              (Matrix)
+import Data.Set                 (Set)
 import Data.Time                (getCurrentTime, toGregorian, utctDay)
 import Data.Vector              (Vector)
 import Data.Vector.Storable     ((!))
@@ -30,7 +29,8 @@ import qualified Data.ByteString.Char8  as B
 -- Fucking name collision
 import qualified System.Console.CmdArgs as C
 import qualified Data.Map.Strict        as M
-import qualified Data.Matrix        as MA
+import qualified Data.Set               as S
+--import qualified Data.Matrix        as MA
 import qualified Data.Vector            as V
 import qualified Data.Vector.Storable   as VS
 --import qualified Numeric.LinearAlgebra.Data as LD
@@ -40,7 +40,7 @@ import File
 import Graph
 --import Graph2 (updateAdjacencyList, updateAdjacencyList')
 import Types
-import Walk
+--import Walk
 --import Walk2
 import WalkFFI
 import Utility
@@ -61,6 +61,14 @@ data Options = Options {
       , similarTo :: String
         -- Top N most similar terms
       , top :: Int
+        -- Restart probability
+      , restart :: Double
+        -- File w/ a list of identifiers to determine similarity 
+      , inputFile :: FilePath
+        -- Save genes when creating output
+      , saveGenes :: Bool
+        -- Save terms when creating output
+      , saveTerms :: Bool
         -- Required argument: the output file data is saved to
       , output :: FilePath
 
@@ -108,12 +116,48 @@ _DTAG cols = do
 
 -- Text to display when viewing program options
 --
+optEdges :: String
+--
 optEdges = "Add the contents of the edge list file to the entity graph"
+
+optGenesets :: String
+--
 optGenesets = "Add the contents of the gene set file to the entity graph"
+
+optAnnotations :: String
+--
 optAnnotations = "Add the contents of the annotation file to the entity graph"
+
+optOntology :: String
+--
 optOntology = "Add ontology relationships to the entity graph"
+
+optSimilarTo :: String
+--
 optSimilarTo = "Calculate similarity for the given ontology term"
+
+optTop :: String
+--
 optTop = "Only include the top N most similar terms"
+
+optRestart :: String
+--
+optRestart = "Random walk restart probability (default a = 0.15)"
+
+optSaveGenes :: String
+--
+optSaveGenes = "Save genes when creating output"
+
+optSaveTerms :: String
+--
+optSaveTerms = "Save genes when creating output"
+
+optInputFile :: String
+--
+optInputFile = "File with a list of identifiers to determine similarity"
+
+argOutput :: String
+--
 argOutput = "File to save data to"
 
 ---- Fills in info about the program's options.
@@ -126,6 +170,10 @@ options = Options {
     , ontology = def &= explicit &= C.name "ontology" &= typFile &= help optOntology
     , similarTo = def &= explicit &= C.name "similar-to" &= typ "STRING" &= help optSimilarTo
     , top = def &= explicit &= C.name "top" &= typ "INT" &= help optTop
+    , restart = def &= explicit &= C.name "restart" &= typ "FLOAT" &= help optRestart
+    , saveGenes = def &= explicit &= C.name "save-genes" &= typ "BOOL" &= help optSaveGenes
+    , saveTerms = def &= explicit &= C.name "save-terms" &= typ "BOOL" &= help optSaveTerms
+    , inputFile = def &= explicit &= C.name "input-file" &= typFile &= help optInputFile
     , output = def &= argPos 0 &= typFile
 }
 
@@ -137,16 +185,16 @@ getOptions = cmdArgs $ options
     -- &= verbosityArgs [explicit, name "verbose", name "v"] []
     &= verbosity
     &= versionArg [explicit, C.name "version", summary _INFO]
-    &= summary (_INFO)
+    &= summary _INFO
     &= help _DESC
     &= helpArg [explicit, C.name "help", C.name "h"]
     &= program _NAME
 
 main :: IO ()
 main = do
-    args <- getArgs
+    pargs <- getArgs
     -- If the user did not specify any arguments, pretend as "--help" was given
-    opts <- (if null args then withArgs ["--help"] else id) getOptions
+    opts <- (if null pargs then withArgs ["--help"] else id) getOptions
     optionHandler opts
  
 ---- Handles the user supplied options. Does some sanity checking and any 
@@ -165,11 +213,16 @@ optionHandler opts@Options{..}  = do
         putStrLn "--annotations" >> 
         exitWith (ExitFailure 1)
 
+    when (restart < 0.0 || restart >= 1.0) $
+        putStrLn "The restart probability must be found in (0, 1)" >>
+        exitWith (ExitFailure 1)
+
     exec opts {
           edges = edges
         , genesets = genesets
         , annotations = annotations
         , ontology = ontology
+        , restart = if restart <= 0.0 then 0.15 else restart
         , output = output
     }
 
@@ -201,26 +254,50 @@ handleOntology :: FilePath -> IO (Vector (Entity, Entity))
 handleOntology "" = return V.empty
 handleOntology fp = readTermFile fp
 
-{-
-writeWalkedRelations :: FilePath -> Map Entity Int -> [Double] -> Entity -> [Entity] -> IO ()
+handleSimilarTo :: String -> [String]
 --
-writeWalkedRelations fp m ds e es = 
-    B.appendFile fp (serializeWalkScores sims) >> B.appendFile fp "\n"
+handleSimilarTo = fmap strip . splitOn ","
     where
-        edexs = fmap (\e' -> (e', M.findWithDefault 0 e' m)) es
-        sims = fmap (\(e', i) -> (e, e', ds !! i)) edexs
+        strip = reverse . dropWhile (== ' ') . reverse . dropWhile (== ' ')
 
-pairwiseWalk :: FilePath -> Matrix Double -> Map Entity Int -> [Entity] -> IO ()
+makeGOFilePath :: String -> FilePath
 --
-pairwiseWalk _ _ _ [] = return ()
-pairwiseWalk _ _ _ (e:[]) = return ()
-pairwiseWalk fp ma m (e:es) 
-    | eindex == 0 = pairwiseWalk fp ma m es
-    | otherwise = writeWalkedRelations fp m walkSims e es >> pairwiseWalk fp ma m es
+makeGOFilePath s
+    | length split > 1 = (split !! 1) ++ ".tsv"
+    | otherwise = s ++ ".tsv"
     where
-        eindex = M.findWithDefault 0 e m
-        walkSims = walk ma eindex
-        -}
+        split = splitOn ":" s
+
+removeGenesets :: Bool -> [(Entity, Double)] -> [(Entity, Double)]
+--
+removeGenesets False = id
+removeGenesets _ = filter (not . isSet . fst)
+    where
+        isSet (EGeneSet _) = True
+        isSet _ = False
+
+removeTerms :: Bool -> [(Entity, Double)] -> [(Entity, Double)]
+--
+removeTerms False = id
+removeTerms _ = filter (not . isTerm . fst)
+    where
+        isTerm (ETerm _) = True
+        isTerm _ = False
+
+removeGenes :: Bool -> [(Entity, Double)] -> [(Entity, Double)]
+--
+removeGenes False = id
+removeGenes _ = filter (not . isGene . fst)
+    where
+        isGene (EGene _) = True
+        isGene _ = False
+
+proxToEnts :: Map Entity Int -> VS.Vector Double -> [(Entity, Double)]
+--
+proxToEnts me ds = entList
+    where
+        entIndexes = M.foldlWithKey' (\ac e' i -> (e', i) : ac) [] me
+        entList = fmap (\(e', i) -> (e', ds ! i)) entIndexes
 
 writeWalkedRelations :: FilePath -> Map Entity Int -> VS.Vector Double -> Entity -> IO ()
 --
@@ -231,11 +308,18 @@ writeWalkedRelations fp m ds e =
         isTerm _ = False
         -- Doing this every time is gonna be slow...
         termMap = M.filterWithKey (\k _ -> isTerm k) m
-        entIndexes = M.foldlWithKey' (\ac e i -> (e, i) : ac) [] termMap
+        entIndexes = M.foldlWithKey' (\ac e' i -> (e', i) : ac) [] termMap
         sims' = fmap (\(e', i) -> (e, e', ds ! i)) entIndexes
-        sims = filter (\(_, _, v) -> v > 0.0) sims'
+        sims = sortBy (\(_, _, a) (_, _, b) -> compare b a ) $ filter (\(_, _, v) -> v > 0.0) sims'
         --edexs = V.map (\e' -> (e', M.findWithDefault 0 e' m)) es
         --sims = V.map (\(e', i) -> (e, e', ds ! i)) edexs
+        --
+writeWalkedRelations' :: FilePath -> Entity -> [(Entity, Double)] -> IO ()
+--
+writeWalkedRelations' fp e es = 
+    B.appendFile fp (serializeWalkScores sims) >> B.appendFile fp "\n"
+    where
+        sims = fmap (\(e', d) -> (e, e', d)) $ filter (\t -> snd t > 0.0) es
 
 -- | don't do this at home kids
 --
@@ -255,38 +339,7 @@ pairwiseWalk fp me vs a (uncons -> (vh, vt))
         graphSize = M.size me
         entIndex = M.findWithDefault (-1) vh me
         walk = randomWalk graphSize entIndex vs a (1.0 - a)
-{-
---pairwiseWalk :: FilePath -> Matrix Double -> Map Entity Int -> Vector Entity -> IO ()
-pairwiseWalk :: FilePath -> LD.Matrix Double -> Map Entity Int -> Vector Entity -> IO ()
---
---pairwiseWalk _ _ _ [] = return ()
---pairwiseWalk _ _ _ (e:[]) = return ()
-pairwiseWalk fp ma m (uncons -> (vhead, vtail))
-    | V.null vtail = return ()
-    | eindex == 0 = pairwiseWalk fp ma m vtail
-    | otherwise = writeWalkedRelations fp m walkSims vhead vtail >> pairwiseWalk fp ma m vtail
-    -- | otherwise = do
-    --     walk <- writeWalkedRelations fp m walkSims vhead vtail 
-    --     walk `deepseq` pairwiseWalk fp ma m vtail
-    where
-        eindex = M.findWithDefault 0 vhead m
-        walkSims = V.fromList $!! walk' ma eindex
 
-pairwiseWalk2 :: FilePath -> LD.Matrix Double -> Map Entity Int -> Vector Entity -> IO ()
---
-pairwiseWalk2 fp ma m (uncons -> (vhead, vtail))
-    | V.null vtail = return ()
-    | eindex == 0 = pairwiseWalk fp ma m vtail
-    | otherwise = do
-        putStrLn "doing a pairwise walk"
-        appendFile "/projects/chesler-lab/walk-out.txt" "doing a pairwise walk\n"
-        ws <- walkSims 
-        writeWalkedRelations fp m ws vhead vtail
-        pairwiseWalk fp ma m vtail
-    where
-        eindex = M.findWithDefault 0 vhead m
-        ialkSims = V.fromList <$> walk'2 ma eindex
--}
 onlyTerms :: Vector Entity -> Vector Entity
 --
 onlyTerms = V.filter isTerm
@@ -317,7 +370,50 @@ writeOutputHeader fp = do
     B.writeFile fp tag
     B.appendFile fp "\n"
 
-ofp = "/projects/chesler-lab/walk-out.txt"
+-- | Program output based on verbosity
+--
+scream :: Bool -> String -> IO ()
+--
+scream True s = putStrLn s
+scream False _ = return ()
+
+handleInputOptions :: Options -> Map Entity Int -> VS.Vector Double -> IO ()
+--
+handleInputOptions Options{..} me graph
+    | not $ null similarTo = do
+        forM_ (handleSimilarTo similarTo) $ \term -> do
+
+            --scream verb $ "Finding terms similar to " ++ term ++ "..."
+
+            let termIndex = getIndex (termEntity (B.pack term) "") me
+            let result = randomWalk (M.size me) termIndex graph restart (1.0 - restart)
+
+            --scream verb "Transitioning to C code..."
+
+            writeOutputHeader (makeGOFilePath term)
+
+            writeWalkedRelations (makeGOFilePath term) me result $ termEntity (B.pack term) ""
+
+    | not $ null inputFile = do
+        inputs <- readInputFile inputFile
+        verb <- isLoud
+
+        let sinputs = S.fromList inputs
+
+        writeOutputHeader output
+
+        forM_ (inputs) $ \ent -> do
+
+            let termIndex = getIndex ent me
+            let result = randomWalk (M.size me) termIndex graph restart (1.0 - restart)
+            let result' = removeNonInputs sinputs $ removeGenes (not saveGenes) $ removeTerms (not saveTerms) $ 
+                          removeGenesets True $ proxToEnts me result
+
+            writeWalkedRelations' output ent result'
+
+    | otherwise = return ()
+    where
+        removeNonInputs s = filter (\(e, _) -> S.member e s) 
 
 ---- Where all the execution magic happens. 
 --
@@ -327,75 +423,53 @@ exec opts@Options{..} = do
     -- Verbosity argument
     verb <- isLoud
 
-    B.writeFile ofp ""
-
-    putStrLn "Reading files..."
-    B.appendFile ofp "Reading files...\n"
+    scream verb "Reading files..."
 
     fEdges <- handleEdges edges
     fGenesets <- handleGenesets genesets
     fAnnotations <- handleAnnotations annotations
     fTerms <- handleOntology ontology
 
-    putStrLn $ "Loaded " ++ (show $ V.length fEdges) ++ " network edges"
-    putStrLn $ "Loaded " ++ (show $ V.length fGenesets) ++ " gene sets"
-    putStrLn $ "Loaded " ++ (show $ V.length fAnnotations) ++ " ontology annotations"
-    putStrLn $ "Loaded " ++ (show $ V.length fTerms) ++ " ontology relations"
+    scream verb $ "Loaded " ++ show (V.length fEdges) ++ " network edges"
+    scream verb $ "Loaded " ++ show (V.length fGenesets) ++ " gene sets"
+    scream verb $ "Loaded " ++ show (V.length fAnnotations) ++ " ontology annotations"
+    scream verb $ "Loaded " ++ show (V.length fTerms) ++ " ontology relations"
 
-    putStrLn "Manipulating stored entities..."
+    scream verb "Manipulating stored entities..."
 
+    --let entities = V.cons sinkEntity $!! flattenEntities fEdges fGenesets fAnnotations fTerms
     let entities = flattenEntities fEdges fGenesets fAnnotations fTerms
     let graphSize = V.length entities
 
-    --putStrLn $ show $ V.length entities
-    --
-    putStrLn $ (show $ V.length $ onlyTerms entities) ++ " unique terms"
-    putStrLn $ (show $ V.length $ onlyGenes entities) ++ " unique genes"
-    putStrLn $ (show $ V.length $ onlyGeneSets entities) ++ " unique gene sets"
-    putStrLn $ (show $ graphSize) ++ " nodes"
+    scream verb $ show (V.length $ onlyTerms entities) ++ " unique terms"
+    scream verb $ show (V.length $ onlyGenes entities) ++ " unique genes"
+    scream verb $ show (V.length $ onlyGeneSets entities) ++ " unique gene sets"
+    scream verb $ show graphSize ++ " nodes"
     
-    putStrLn "Tagging entities..."
+    scream verb "Tagging entities..."
 
     let entityIndex = tagEntities entities
     let indexEntity = M.foldlWithKey' (\ac k a -> M.insert a k ac) M.empty entityIndex
 
-    -- Strictness is enforced in the rest of the code since we will eventually
-    -- be using every single value (node) in the graph.
-    entityIndex `deepseq` (B.appendFile ofp "Tagging entities...\n")
-    --putStrLn $ show $ LD.size $ normalizeColumns' sampleGraph'
+    scream verb "Building entity graph..."
 
-    -- let graphMatrix = updateAdjacencyMatrix False entityIndex fEdges $!!
-    --let graphMatrix = convertMatrix $!! updateAdjacencyMatrix False entityIndex fEdges $!!
-    --                  updateAdjacencyMatrix' True entityIndex fGenesets $!!
-    --                  updateAdjacencyMatrix False entityIndex fAnnotations $!!
-    --                  updateAdjacencyMatrix False entityIndex fTerms $!!
-    --                  makeAdjacencyMatrix entities
-    
-    --let graphMatrix = LD.assoc ((V.length entities), (V.length entities)) 0.0 $!! 
-    --                  updateAdjacencyList False entityIndex fEdges $!!
-    --                  updateAdjacencyList' True entityIndex fGenesets $!!
-    --                  updateAdjacencyList False entityIndex fAnnotations $!!
-    --                  updateAdjacencyList False entityIndex fTerms $!!
-    --                  []
-    
-    putStrLn "Building entity graph..."
-
-    let graphMatrix = make1DMatrix (M.size entityIndex) $!! 
-    --let graphMatrix = makeHPMatrix (M.size entityIndex) $!! 
-    --let graphMatrix = makeMatrix (M.size entityIndex) $!! 
+    --let graphMatrix = updateDanglingNodes (getIndex sinkEntity entityIndex) graphSize $!! 
+    let graphMatrix = 
+                      make1DMatrix graphSize $!! 
                       updateAdjacencyList False entityIndex fEdges $!! 
                       updateAdjacencyList' True entityIndex fGenesets $!!
-                      updateAdjacencyList False entityIndex fAnnotations $!!
+                      updateAdjacencyList True entityIndex fAnnotations $!!
                       updateAdjacencyList False entityIndex fTerms []
 
-    putStrLn "Column normalziing the graph matrix..."
+    scream verb "Column normalziing the graph matrix..."
 
-    let graphMatrix' = normalize1DMatrix (M.size entityIndex) graphMatrix
+    -- Strictness is enforced in the rest of the code since we will eventually
+    -- be using every single value (node) in the graph.
+    let graphMatrix' = deepseq graphMatrix $ normalize1DMatrix (M.size entityIndex) graphMatrix
 
-    putStrLn "Forcing strictness..."
+    if verb then putStr "Forcing strictness..." else return ()
 
-    graphMatrix' `deepseq` (B.appendFile ofp "Walking the graph...\n")
-
+    deepseq graphMatrix' $ scream verb "done"
 
     --writeOutputHeader output 
 
@@ -420,25 +494,57 @@ exec opts@Options{..} = do
     --B.appendFile ofp (B.intercalate "\t" $ fmap (B.pack . show) $ VS.toList thewalk)
     --B.appendFile ofp "\n"
 
+{-
+    putStrLn $ show $ V.filter (\(_, k) -> k>0.0) $ 
+               V.imap (\i x -> (getIndex i indexEntity, x)) $ V.convert $ 
+               get1DRow (getIndex (ETerm (Term "GO:0005657" "")) entityIndex) graphSize graphMatrix
+
+    putStrLn $ ("dangling nodes: " ++) $ show $ V.length $ V.filter (\(_, k) -> k>0.0) $ 
+               V.imap (\i x -> (getIndex i indexEntity, x)) $ V.convert $ 
+               get1DRow (getIndex sinkEntity entityIndex) graphSize graphMatrix
+               -}
+
+{-
+    putStrLn $ show $ randomWalk 6 0 (normalize1DMatrix 6 sample1d) 0.15 (1.0 - 0.15)
+    putStrLn $ show $ randomWalk 6 1 (normalize1DMatrix 6 sample1d) 0.15 (1.0 - 0.15)
+    putStrLn $ show $ randomWalk 6 2 (normalize1DMatrix 6 sample1d) 0.15 (1.0 - 0.15)
+    putStrLn $ show $ randomWalk 6 3 (normalize1DMatrix 6 sample1d) 0.15 (1.0 - 0.15)
+    putStrLn $ show $ randomWalk 6 4 (normalize1DMatrix 6 sample1d) 0.15 (1.0 - 0.15)
+    putStrLn $ show $ randomWalk 6 5 (normalize1DMatrix 6 sample1d) 0.15 (1.0 - 0.15)
+-}
+
+{-
     if not $ null similarTo
     then do
-        putStrLn $ "Finding terms similar to " ++ similarTo ++ "..."
+        forM_ (handleSimilarTo similarTo) $ \term -> do
 
-        let termIndex = getIndex (termEntity (B.pack similarTo) "") entityIndex
-        let result = randomWalk graphSize termIndex graphMatrix 0.15 (1.0 - 0.15)
+            scream verb $ "Finding terms similar to " ++ term ++ "..."
+            --scream verb $ VS.foldl' (+) 0.0 $ colSlice c $ VS.map (\r -> VS.slice (s * r + c) 1 vs ! 0) graphMatrix
+        
 
-        putStrLn "Transitioning to C code..."
+            --scream verb $ show $ getIndex (termEntity (B.pack "GO:0008150") "") entityIndex
+            --scream verb $ show $ getIndex (termEntity (B.pack similarTo) "") entityIndex
 
-        writeWalkedRelations output entityIndex result $ termEntity (B.pack similarTo) ""
+            let termIndex = getIndex (termEntity (B.pack term) "") entityIndex
+            let result = randomWalk graphSize termIndex graphMatrix' restart (1.0 - restart)
+
+            scream verb "Transitioning to C code..."
+
+            writeOutputHeader (makeGOFilePath term)
+
+            writeWalkedRelations (makeGOFilePath term) entityIndex result $ termEntity (B.pack term) ""
         
     else do
-        putStrLn "Transitioning to C code..."
+        scream verb "Transitioning to C code..."
 
-        pairwiseWalk output entityIndex graphMatrix 0.15 $!! onlyTerms entities
+        pairwiseWalk output entityIndex graphMatrix' restart $!! onlyTerms entities
 
     --pairwiseWalk2 output graphMatrix entityIndex $!! onlyTerms entities
-{-
 -}
+
+    handleInputOptions opts entityIndex graphMatrix'
+
+    scream verb "Done!"
 
     return ()
 
