@@ -59,6 +59,8 @@ data Options = Options {
       , ontology :: FilePath
         -- Calculate similarity for the given term
       , similarTo :: String
+        -- Calculate similarity for the given group of entities
+      , similarGroup :: String
         -- Top N most similar terms
       , top :: Int
         -- Restart probability
@@ -136,6 +138,10 @@ optSimilarTo :: String
 --
 optSimilarTo = "Calculate similarity for the given ontology term"
 
+optSimilarGroup :: String
+--
+optSimilarGroup = "Calculate similarity for the given group of entities"
+
 optTop :: String
 --
 optTop = "Only include the top N most similar terms"
@@ -169,6 +175,7 @@ options = Options {
     , annotations = def &= explicit &= C.name "annotations" &= typFile &= help optAnnotations
     , ontology = def &= explicit &= C.name "ontology" &= typFile &= help optOntology
     , similarTo = def &= explicit &= C.name "similar-to" &= typ "STRING" &= help optSimilarTo
+    , similarGroup = def &= explicit &= C.name "similar-group" &= typ "STRING" &= help optSimilarGroup
     , top = def &= explicit &= C.name "top" &= typ "INT" &= help optTop
     , restart = def &= explicit &= C.name "restart" &= typ "FLOAT" &= help optRestart
     , saveGenes = def &= explicit &= C.name "save-genes" &= typ "BOOL" &= help optSaveGenes
@@ -327,6 +334,7 @@ uncons :: Vector a -> (a, Vector a)
 --
 uncons v = (V.unsafeHead v, V.unsafeTail v)
 
+{-
 pairwiseWalk :: FilePath -> Map Entity Int -> VS.Vector Double -> Double ->
                 Vector Entity -> IO ()
 --
@@ -339,6 +347,7 @@ pairwiseWalk fp me vs a (uncons -> (vh, vt))
         graphSize = M.size me
         entIndex = M.findWithDefault (-1) vh me
         walk = randomWalk graphSize entIndex vs a (1.0 - a)
+-}
 
 onlyTerms :: Vector Entity -> Vector Entity
 --
@@ -386,13 +395,25 @@ handleInputOptions Options{..} me graph
             --scream verb $ "Finding terms similar to " ++ term ++ "..."
 
             let termIndex = getIndex (termEntity (B.pack term) "") me
-            let result = randomWalk (M.size me) termIndex graph restart (1.0 - restart)
+            let result = randomWalk (M.size me) 1 (VS.singleton termIndex) graph restart 
 
             --scream verb "Transitioning to C code..."
 
             writeOutputHeader (makeGOFilePath term)
 
             writeWalkedRelations (makeGOFilePath term) me result $ termEntity (B.pack term) ""
+
+    | not $ null similarGroup = do
+        let group = fmap (\t -> getIndex (termEntity (B.pack t) "") me) $ handleSimilarTo similarGroup
+        let seeds = VS.fromList group
+
+        let result = randomWalk (M.size me) 1 seeds graph restart 
+
+            --scream verb "Transitioning to C code..."
+
+        writeOutputHeader output
+
+        writeWalkedRelations output me result $ termEntity (B.pack similarGroup) ""
 
     | not $ null inputFile = do
         inputs <- readInputFile inputFile
@@ -405,8 +426,8 @@ handleInputOptions Options{..} me graph
         forM_ (inputs) $ \ent -> do
 
             let termIndex = getIndex ent me
-            let result = randomWalk (M.size me) termIndex graph restart (1.0 - restart)
-            let result' = removeNonInputs sinputs $ removeGenes (not saveGenes) $ removeTerms (not saveTerms) $ 
+            let result = randomWalk (M.size me) 1 (VS.singleton termIndex) graph restart
+            let result' = removeGenes (not saveGenes) $ removeTerms (not saveTerms) $ 
                           removeGenesets True $ proxToEnts me result
 
             writeWalkedRelations' output ent result'

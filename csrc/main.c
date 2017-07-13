@@ -57,10 +57,12 @@ int main( int argc, char **argv ) {
 	//	printf("\n");
 	//}
 
+	/*
 	double *vec = randomWalkMatrix(6, 0, m, 0.15, 1.0 - 0.15);
 
     for (int r = 0; r < 6; r++)
 		printf("%f ", vec[r]);
+		*/
 
 	return 0;
 }

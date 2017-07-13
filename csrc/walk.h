@@ -34,8 +34,10 @@ double *calculateProxVector(
 
 double calculateConvergence( int size, double *pv, double *cv );
 
-double *randomWalkMatrix( int size, int seed, double **m, double a0, double a1 );
-double *randomWalkVector( int size, int seed, double *v, double a0, double a1 );
+//double *randomWalkMatrix( int size, int seed, double **m, double a0, double a1 );
+double *randomWalkMatrix( int size, int seedSize, int *seed, double **m, double a0, double a1 );
+//double *randomWalkVector( int size, int seed, double *v, double a0, double a1 );
+double *randomWalkVector( int size, int seedSize, int *seed, double *v, double alpha );
 
 #endif
 

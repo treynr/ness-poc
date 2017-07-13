@@ -136,6 +136,24 @@ double **normalizeColumns( int size, double **m ) {
     return mnew;
 }
 
+double *initialProxVector2( int size, int seedSize, int *seed ) {
+
+    double *v = (double *) malloc(size * sizeof(double));
+
+    for (int i = 0; i < size; i++)
+		v[i] = 0.0;
+
+	for (int i = 0; i < seedSize; i++) {
+
+		if (seed[i] < 0 || seed[i] >= size)
+			seed[i] = 0;
+
+		v[seed[i]] = 1.0 / (float)seedSize;
+	}
+
+    return v;
+}
+
 double *initialProxVector( int size, int seed ) {
 
     double *v = (double *) malloc(size * sizeof(double));
@@ -238,7 +256,8 @@ double calculateConvergence( int size, double *pv, double *cv ) {
     return c;
 }
 
-double *randomWalkVector( int size, int seed, double *v, double a0, double a1 ) {
+double *randomWalkVector( int size, int seedSize, int *seed, double *v, double alpha ) {
+//double *randomWalkVector( int size, int seed, double *v, double a0, double a1 ) {
 
 	double **m = allocateNxN(size);
 
@@ -261,10 +280,12 @@ double *randomWalkVector( int size, int seed, double *v, double a0, double a1 ) 
 			m[r][c] = v[size * r + c];
 
 
-	return randomWalkMatrix(size, seed, m, a0, a1);
+	return randomWalkMatrix(size, seedSize, seed, m, alpha, 1.0 - alpha);
+	//return randomWalkMatrix(size, seed, m, a0, a1);
 }
 
-double *randomWalkMatrix( int size, int seed, double **m, double a0, double a1 ) {
+//double *randomWalkMatrix( int size, int seed, double **m, double a0, double a1 ) {
+double *randomWalkMatrix( int size, int seedSize, int *seed, double **m, double a0, double a1 ) {
 
     // deallocate
 	//printf("[C] Column normalizing matrix...\n");
@@ -281,11 +302,13 @@ double *randomWalkMatrix( int size, int seed, double **m, double a0, double a1 )
 
 	printf("[C] Generating initial proximity vector...\n");
 
-    double *p0 = initialProxVector(size, seed);
+    //double *p0 = initialProxVector(size, seed);
+    double *p0 = initialProxVector2(size, seedSize, seed);
 
 	printf("[C] Generating initial proximity vector...\n");
 
-    double *preVector = initialProxVector(size, seed);
+    //double *preVector = initialProxVector(size, seed);
+	double *preVector = initialProxVector2(size, seedSize, seed);
 
 	printf("[C] Calculating proximity vectory...\n");
 
@@ -302,7 +325,7 @@ double *randomWalkMatrix( int size, int seed, double **m, double a0, double a1 )
 
     //return curVector;
 
-	int ii = 0;
+	//int ii = 0;
 
     while (calculateConvergence(size, preVector, curVector) > threshold) {
 

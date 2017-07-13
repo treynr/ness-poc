@@ -29,8 +29,12 @@ import qualified Data.Vector.Storable as V
 --    c_randomWalkMatrix :: CInt -> CInt -> Ptr (Ptr CDouble) -> CDouble -> 
 --                          CDouble -> Ptr CDouble
 
+--foreign import ccall "walk.h randomWalkVector"
+--    c_randomWalkVector :: CInt -> CInt -> Ptr CDouble -> CDouble -> CDouble ->
+--                          IO (Ptr CDouble)
+
 foreign import ccall "walk.h randomWalkVector"
-    c_randomWalkVector :: CInt -> CInt -> Ptr CDouble -> CDouble -> CDouble ->
+    c_randomWalkVector :: CInt -> CInt -> Ptr CInt -> Ptr CDouble -> CDouble ->
                           IO (Ptr CDouble)
 
 alpha :: Double
@@ -69,15 +73,30 @@ sample1db = V.fromList [ 0.0, 1.0, 0.0, 1.0, 0.0, 1.0,
 
 -- | Haskell wrapper function for the random walk code in C.
 --
-randomWalk :: Int -> Int -> Vector Double -> Double -> Double -> V.Vector Double
+--randomWalk :: Int -> Int -> Vector Double -> Double -> Double -> V.Vector Double
+----
+--randomWalk n seed vs a a' = unsafePerformIO $ do
+--    let (fpvs, _, _) = V.unsafeToForeignPtr vs
 --
-randomWalk n seed vs a a' = unsafePerformIO $ do
-    let (fpvs, _, _) = V.unsafeToForeignPtr vs
+--    pWalk <- liftM castPtr $ withForeignPtr fpvs $ \ptrvs ->
+--             c_randomWalkVector (fromIntegral n) (fromIntegral seed) 
+--                                (castPtr ptrvs) (realToFrac a) 
+--                                (realToFrac a')
+--
+--    fpWalk <- newForeignPtr finalizerFree pWalk
+--
+--    return $ V.unsafeFromForeignPtr0 fpWalk n
 
-    pWalk <- liftM castPtr $ withForeignPtr fpvs $ \ptrvs ->
-             c_randomWalkVector (fromIntegral n) (fromIntegral seed) 
+randomWalk :: Int -> Int -> Vector Int -> Vector Double -> Double -> V.Vector Double
+--
+randomWalk n seedSize seed vs a = unsafePerformIO $ do
+    let (fpvs, _, _) = V.unsafeToForeignPtr vs
+    let (fps, _, _) = V.unsafeToForeignPtr seed
+
+    pWalk <- liftM castPtr $ withForeignPtr fpvs $ \ptrvs -> withForeignPtr fps $ \ptrs ->
+             c_randomWalkVector (fromIntegral n)
+                                (fromIntegral seedSize) (castPtr ptrs)
                                 (castPtr ptrvs) (realToFrac a) 
-                                (realToFrac a')
 
     fpWalk <- newForeignPtr finalizerFree pWalk
 
