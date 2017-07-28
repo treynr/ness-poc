@@ -3,8 +3,8 @@ version:             0.1.0
 -- synopsis:
 -- description:
 -- homepage:
-license:             BSD3
-license-file:        LICENSE
+-- license:             BSD3
+-- license-file:        LICENSE
 author:              TR
 maintainer:          tim@fin0c.net
 copyright:           2017 TR
