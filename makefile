@@ -5,7 +5,7 @@ OPTS = --std=c99 -Wall -O3
 OUT = -o walker
 DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))/csrc
 
-all: clean cbuild hbuild
+build: cbuild hbuild
 
 cbuild:
 	$(MAKE) -C $(CSRC)
@@ -13,7 +13,7 @@ cbuild:
 	$(MAKE) objects -C $(CSRC)
 
 hbuild: 
-	stack build --extra-include-dirs $(DIR) --extra-lib-dirs $(DIR)
+	stack build --copy-bins --extra-include-dirs $(DIR) --extra-lib-dirs $(DIR)
 
 clean:
 	stack clean
