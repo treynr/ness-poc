@@ -492,7 +492,7 @@ exec opts@Options{..} = do
 
     deepseq graphMatrix' $ scream verb "done"
 
-    --handleInputOptions opts entityIndex graphMatrix'
+    handleInputOptions opts entityIndex graphMatrix'
 
     scream verb "Done!"
 
