@@ -2,7 +2,7 @@
 #PBS -N random-walk
 #PBS -l nodes=1:ppn=3
 #PBS -l mem=400gb
-#PBS -l walltime=48:00:00
+#PBS -l walltime=24:00:00
 #PBS -e out-rwalk.txt
 #PBS -o err-rwalk.txt
 
@@ -41,7 +41,7 @@ output="$data_dir/entity-rwalk.tsv"
 	## The job must be submitted from the semantic-similarity directory
 	## otherwise the batch system may throw an error about not finding the 
 	## Haskell compiler
-	#cd $PBS_O_WORKDIR
+	cd $PBS_O_WORKDIR
 #fi
 
 mkdir -p $data_dir
@@ -73,6 +73,6 @@ mkdir -p $data_dir
 #
 #set -- "$SIM" "$NS"
 
-$stack exec --RTS -- walker --verbose $similar $edges $annotations $genesets $terms $output +RTS -N3 +RTS -qg
+$stack exec --RTS -- walker --verbose $similar $edges $annotations $genesets $terms $output +RTS -N3 -qg
 
 

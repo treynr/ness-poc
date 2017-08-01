@@ -25,26 +25,9 @@ import System.IO.Unsafe     (unsafePerformIO)
 
 import qualified Data.Vector.Storable as V
 
---foreign import ccall "walk.h randomWalkMatrix"
---    c_randomWalkMatrix :: CInt -> CInt -> Ptr (Ptr CDouble) -> CDouble -> 
---                          CDouble -> Ptr CDouble
-
---foreign import ccall "walk.h randomWalkVector"
---    c_randomWalkVector :: CInt -> CInt -> Ptr CDouble -> CDouble -> CDouble ->
---                          IO (Ptr CDouble)
-
 foreign import ccall "walk.h randomWalkVector"
     c_randomWalkVector :: CInt -> CInt -> Ptr CInt -> Ptr CDouble -> CDouble ->
                           IO (Ptr CDouble)
-
-alpha :: Double
---
-alpha = 0.15
-
-alpha' :: Double
---
-alpha' = 1.0 - alpha
-
 
 sample1d :: Vector Double
 -- j -> i
@@ -73,20 +56,6 @@ sample1db = V.fromList [ 0.0, 1.0, 0.0, 1.0, 0.0, 1.0,
 
 -- | Haskell wrapper function for the random walk code in C.
 --
---randomWalk :: Int -> Int -> Vector Double -> Double -> Double -> V.Vector Double
-----
---randomWalk n seed vs a a' = unsafePerformIO $ do
---    let (fpvs, _, _) = V.unsafeToForeignPtr vs
---
---    pWalk <- liftM castPtr $ withForeignPtr fpvs $ \ptrvs ->
---             c_randomWalkVector (fromIntegral n) (fromIntegral seed) 
---                                (castPtr ptrvs) (realToFrac a) 
---                                (realToFrac a')
---
---    fpWalk <- newForeignPtr finalizerFree pWalk
---
---    return $ V.unsafeFromForeignPtr0 fpWalk n
-
 randomWalk :: Int -> Int -> Vector Int -> Vector Double -> Double -> V.Vector Double
 --
 randomWalk n seedSize seed vs a = unsafePerformIO $ do
@@ -102,6 +71,11 @@ randomWalk n seedSize seed vs a = unsafePerformIO $ do
 
     return $ V.unsafeFromForeignPtr0 fpWalk n
 
+-- | According to profiling this function eats up the most time/space,
+-- | specifically colSums and normalize.
+-- | Updated so that colSum results are memoized. Shaves off 3 minutes from run
+-- | time.
+--
 normalize1DMatrix :: Int -> Vector Double -> Vector Double
 --
 normalize1DMatrix s vs = V.concat normalize
@@ -112,8 +86,8 @@ normalize1DMatrix s vs = V.concat normalize
         colSlice c = V.map (\r -> V.slice (s * r + c) 1 vs ! 0) velems
         colSum c = V.foldl' (+) 0.0 $ colSlice c 
         colSums = V.map colSum velems
-        normalizeRow cs = V.imap (\i v -> if (cs ! i) == 0.0 then 0.0 else v / (cs ! i))
-        normalize = fmap (normalizeRow colSums . rowSlice) [0 .. (s - 1)]
+        normalizeRow = V.imap (\i v -> if (colSums ! i) == 0.0 then 0.0 else v / (colSums ! i))
+        normalize = fmap (normalizeRow . rowSlice) [0 .. (s - 1)]
 
 print1DMatrix :: Int -> Vector Double -> IO ()
 --

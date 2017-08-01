@@ -21,7 +21,7 @@ library
                      , Graph
                      --, Graph2
                      , Types
-                     , Walk
+                     --, Walk
                      --, Walk2
                      , WalkFFI
                      , Utility
@@ -30,7 +30,7 @@ library
                      , containers
                      , deepseq
                      --, hmatrix
-                     , matrix
+                     --, matrix
                      , vector
   default-language:    Haskell2010
   extra-libraries:     walk
@@ -38,15 +38,14 @@ library
 executable walker
   hs-source-dirs:      app
   main-is:             Main.hs
-  ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N -O3
-  --ghc-options:         -Wall -rtsopts -O2
+  --ghc-options:         -Wall -threaded -rtsopts "-with-rtsopts=-N -p" -O3
+  ghc-options:         -Wall -threaded -rtsopts "-with-rtsopts=-N" -O3
   build-depends:       base
                      , bytestring
                      , containers
                      , cmdargs
                      , deepseq
-                     --, hmatrix
-                     , matrix
+                     --, matrix
                      , split
                      , time
                      , vector
@@ -65,3 +64,4 @@ test-suite walker-test
 source-repository head
   type:     git
   location: https://github.com/githubuser/walker
+

@@ -492,78 +492,7 @@ exec opts@Options{..} = do
 
     deepseq graphMatrix' $ scream verb "done"
 
-    --writeOutputHeader output 
-
-
-    --let thewalk = randomWalk (M.size entityIndex) (getIndex (ETerm (Term "GO:0008150" "")) entityIndex) graphMatrix' 0.15 (1 - 0.15)
-
-    --putStrLn $ show $ V.filter (\(x, _) -> x == ETerm (Term "GO:0008150" "")) fTerms
-    
-    --putStrLn $ show $ V.filter (\(_, k) -> k>0.0) $ V.imap (\i x -> (getIndex i indexEntity, x)) $ V.convert $ VS.slice ((M.size entityIndex) * (getIndex (ETerm (Term "GO:0008150" "")) entityIndex)) (M.size entityIndex) graphMatrix
-    --putStrLn $ show $ map (\(i, k) -> (getIndex i indexEntity, k)) $ filter (\(_, k) -> k>10e-20) $ zip [0 .. M.size entityIndex] $ concat $ LD.toLists $ graphMatrix LD.? [getIndex (ETerm (Term "GO:0008150" "")) entityIndex]
-    --putStrLn $ show $ V.filter (\(_, k) -> k>0.0) $ V.imap (\i x -> (getIndex i indexEntity, x)) $ MA.getRow  (getIndex (ETerm (Term "GO:0008150" "")) entityIndex) graphMatrix
-
-    --putStrLn $ show $ getIndex (ETerm (Term "GO:0000003" "")) entityIndex
-    --putStrLn $ show $ getIndex (ETerm (Term "GO:0019953" "")) entityIndex
-    --putStrLn $ show $ V.filter (\(_, k) -> k>0.0) $ V.imap (\i x -> (getIndex i indexEntity, x)) $ V.convert $ get1DRow (getIndex (ETerm (Term "GO:0000003" "")) entityIndex) graphSize graphMatrix
-    --putStrLn $ show $ V.filter (\(_, k) -> k>0.0) $ V.imap (\i x -> (getIndex i indexEntity, x)) $ V.convert $ get1DRow (getIndex (ETerm (Term "GO:0019953" "")) entityIndex) graphSize graphMatrix
-    --putStrLn $ show $ map (\(i, k) -> (getIndex i indexEntity, k)) $ filter (\(_, k) -> k>10e-20) $ zip [0 .. M.size entityIndex] $ concat $ LD.toLists $ graphMatrix LD.? [(getIndex (ETerm (Term "GO:0000003" "")) entityIndex)]
-    --putStrLn $ show $ V.filter (\(_, k) -> k>0.0) $ V.imap (\i x -> (getIndex i indexEntity, x)) $ MA.getRow  (getIndex (ETerm (Term "GO:0000003" "")) entityIndex) graphMatrix
-
-    --putStrLn $ show $ V.filter (\(_, k) -> k>0.0) $ V.imap (\i x -> (getIndex i indexEntity, x)) $ V.convert $ thewalk
-    ----putStrLn $ show $ take 15 $ sortBy (flip compare) $ VS.toList thewalk
-    --B.appendFile ofp (B.intercalate "\t" $ fmap (B.pack . show) $ VS.toList thewalk)
-    --B.appendFile ofp "\n"
-
-{-
-    putStrLn $ show $ V.filter (\(_, k) -> k>0.0) $ 
-               V.imap (\i x -> (getIndex i indexEntity, x)) $ V.convert $ 
-               get1DRow (getIndex (ETerm (Term "GO:0005657" "")) entityIndex) graphSize graphMatrix
-
-    putStrLn $ ("dangling nodes: " ++) $ show $ V.length $ V.filter (\(_, k) -> k>0.0) $ 
-               V.imap (\i x -> (getIndex i indexEntity, x)) $ V.convert $ 
-               get1DRow (getIndex sinkEntity entityIndex) graphSize graphMatrix
-               -}
-
-{-
-    putStrLn $ show $ randomWalk 6 0 (normalize1DMatrix 6 sample1d) 0.15 (1.0 - 0.15)
-    putStrLn $ show $ randomWalk 6 1 (normalize1DMatrix 6 sample1d) 0.15 (1.0 - 0.15)
-    putStrLn $ show $ randomWalk 6 2 (normalize1DMatrix 6 sample1d) 0.15 (1.0 - 0.15)
-    putStrLn $ show $ randomWalk 6 3 (normalize1DMatrix 6 sample1d) 0.15 (1.0 - 0.15)
-    putStrLn $ show $ randomWalk 6 4 (normalize1DMatrix 6 sample1d) 0.15 (1.0 - 0.15)
-    putStrLn $ show $ randomWalk 6 5 (normalize1DMatrix 6 sample1d) 0.15 (1.0 - 0.15)
--}
-
-{-
-    if not $ null similarTo
-    then do
-        forM_ (handleSimilarTo similarTo) $ \term -> do
-
-            scream verb $ "Finding terms similar to " ++ term ++ "..."
-            --scream verb $ VS.foldl' (+) 0.0 $ colSlice c $ VS.map (\r -> VS.slice (s * r + c) 1 vs ! 0) graphMatrix
-        
-
-            --scream verb $ show $ getIndex (termEntity (B.pack "GO:0008150") "") entityIndex
-            --scream verb $ show $ getIndex (termEntity (B.pack similarTo) "") entityIndex
-
-            let termIndex = getIndex (termEntity (B.pack term) "") entityIndex
-            let result = randomWalk graphSize termIndex graphMatrix' restart (1.0 - restart)
-
-            scream verb "Transitioning to C code..."
-
-            writeOutputHeader (makeGOFilePath term)
-
-            writeWalkedRelations (makeGOFilePath term) entityIndex result $ termEntity (B.pack term) ""
-        
-    else do
-        scream verb "Transitioning to C code..."
-
-        pairwiseWalk output entityIndex graphMatrix' restart $!! onlyTerms entities
-
-    --pairwiseWalk2 output graphMatrix entityIndex $!! onlyTerms entities
--}
-
-    handleInputOptions opts entityIndex graphMatrix'
+    --handleInputOptions opts entityIndex graphMatrix'
 
     scream verb "Done!"
 

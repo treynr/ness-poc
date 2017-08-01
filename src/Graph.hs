@@ -14,11 +14,11 @@ module Graph where
 
 import Data.List        (foldl')
 import Data.Map.Strict  (Map)
-import Data.Matrix      (Matrix, zero)
+--import Data.Matrix      (Matrix, zero)
 import Data.Vector      (Vector)
 
 import qualified Data.Map.Strict            as M
-import qualified Data.Matrix                as MA
+--import qualified Data.Matrix                as MA
 import qualified Data.Set                   as S
 import qualified Data.Vector                as V
 import qualified Data.Vector.Storable       as VS
@@ -73,9 +73,9 @@ updateDanglingNodes si s vs = (VS.//) vs $ fmap (\i -> (s * si + i, 1.0)) $!
 
 -- | Transforms the adjacency list into a pure Haskell based matrix.
 --
-makeMatrix :: Int -> [((Int, Int), Double)] -> Matrix Double
---
-makeMatrix s = foldl' (\m (c, v) -> MA.setElem v c m) (MA.zero s s)
+--makeMatrix :: Int -> [((Int, Int), Double)] -> Matrix Double
+----
+--makeMatrix s = foldl' (\m (c, v) -> MA.setElem v c m) (MA.zero s s)
 
 -- | Transforms the adjacency list into a high performance hmatrix for use with
 -- | the linear algebra package.
