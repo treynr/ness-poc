@@ -3,7 +3,7 @@ CC = gcc
 OPTS = --std=c99 -Wall -O3
 OUT = -o walker
 
-all: clean install objects
+all: install objects
 
 install:
 	$(CC) $(OPTS) $(OUT) walk.c main.c

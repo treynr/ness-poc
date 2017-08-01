@@ -416,14 +416,21 @@ handleInputOptions Options{..} me graph
         writeWalkedRelations output me result $ termEntity (B.pack similarGroup) ""
 
     | not $ null inputFile = do
-        inputs <- readInputFile inputFile
+        inputs' <- separateMissingInputs me <$> readInputFile inputFile
+        --inputs <- readInputFile inputFile
+        --let inputs' = separateMissingInputs me inputs
         verb <- isLoud
 
-        let sinputs = S.fromList inputs
+        if (length $ snd inputs') > 0 
+        then do
+            putStrLn "The following input entities are not present in the graph"
+            putStrLn $ show $ snd inputs'
+        else
+            return ()
 
         writeOutputHeader output
 
-        forM_ (inputs) $ \ent -> do
+        forM_ (fst inputs') $ \ent -> do
 
             let termIndex = getIndex ent me
             let result = randomWalk (M.size me) 1 (VS.singleton termIndex) graph restart
@@ -434,6 +441,9 @@ handleInputOptions Options{..} me graph
 
     | otherwise = return ()
     where
+        separateMissingInputs m ls = (onlyValidEntities m ls, noValidEntities m ls)
+        onlyValidEntities m ls = filter (\k -> M.member k m) ls
+        noValidEntities m ls = filter (\k -> not $ M.member k m) ls
         removeNonInputs s = filter (\(e, _) -> S.member e s) 
 
 ---- Where all the execution magic happens. 
