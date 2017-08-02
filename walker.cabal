@@ -15,7 +15,12 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  ghc-options:         -Wall -O3
+  ghc-options:         -Wall 
+                       -Wincomplete-uni-patterns
+                       -Wincomplete-record-updates
+                       -Wmissing-import-lists
+                       -fdiagnostics-color=always
+                       -O3
   exposed-modules:     File
                      , Entity
                      , Graph
@@ -33,14 +38,21 @@ library
 executable walker
   hs-source-dirs:      app
   main-is:             Main.hs
-  --ghc-options:         -Wall -threaded -rtsopts "-with-rtsopts=-N -p" -O3
-  ghc-options:         -Wall -threaded -rtsopts "-with-rtsopts=-N" -O3
+  ghc-options:         -Wall 
+                       -Wincomplete-uni-patterns
+                       -Wincomplete-record-updates
+                       -Wmissing-import-lists
+                       -fdiagnostics-color=always
+                       -rtsopts
+                       -with-rtsopts=-N
+                       -threaded
+                       -O3
   build-depends:       base
                      , bytestring
                      , containers
                      , cmdargs
                      , deepseq
-                     --, matrix
+                     , gitrev
                      , split
                      , time
                      , vector

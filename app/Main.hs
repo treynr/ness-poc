@@ -8,6 +8,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ViewPatterns #-}
 
 module Main where
@@ -21,6 +22,7 @@ import Data.Set                 (Set)
 import Data.Time                (getCurrentTime, toGregorian, utctDay)
 import Data.Vector              (Vector)
 import Data.Vector.Storable     ((!))
+import Development.GitRev       (gitBranch, gitHash)
 import System.Console.CmdArgs
 import System.Environment       (getArgs, withArgs)
 import System.Exit              (ExitCode(..), exitWith)
@@ -85,11 +87,14 @@ _EXEC = "walker"
 _VERS :: String
 _VERS = "0.1.0"
 
+_HASH :: String
+_HASH = $(gitBranch) ++ "@" ++ $(gitHash)
+
 _INFO :: String
-_INFO = _EXEC ++ " version " ++ _VERS
+_INFO = _EXEC ++ " v. " ++ _VERS ++ " (" ++ _HASH ++ ")"
 
 _DESC :: String
-_DESC = "Ontology concept similarity using entity graphs and random walk with restart"
+_DESC = "Ontology concept similarity using entity graphs and random walks with restart"
 
 -- Data export tag
 -- Attaches program version info and command line arguments for
@@ -103,7 +108,7 @@ _DTAG cols = do
     sday <- theDay
 
     return $ intercalate "\n"
-        [ "## " ++ _NAME ++ " v. " ++ _VERS
+        [ "## " ++ _INFO
         , "## last updated " ++ syear ++ ('.' : smonth) ++ ('.' : sday)
         , "## " ++ _EXEC ++ (' ' : sargs)
         , "## " ++ cols
@@ -182,7 +187,7 @@ options = Options {
     , saveTerms = def &= explicit &= C.name "save-terms" &= typ "BOOL" &= help optSaveTerms
     , inputFile = def &= explicit &= C.name "input-file" &= typFile &= help optInputFile
     , output = def &= argPos 0 &= typFile
-}
+} -- &= summary _INFO &= program _EXEC
 
 
 ---- Retrieves options and command line arguments specified by the user.
@@ -195,7 +200,7 @@ getOptions = cmdArgs $ options
     &= summary _INFO
     &= help _DESC
     &= helpArg [explicit, C.name "help", C.name "h"]
-    &= program _NAME
+    &= program _EXEC
 
 main :: IO ()
 main = do
