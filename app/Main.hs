@@ -73,6 +73,8 @@ data Options = Options {
   , optExcludeSets :: Bool
     -- Exclude ontology term entities when saving output
   , optExcludeTerms :: Bool
+    -- Generates graph permutations up to N for permutation testing
+  , optPermute :: Int
     -- Required argument: the output file data is saved to
   , argOutput :: FilePath
 
@@ -147,12 +149,6 @@ txtTop = "Only include the top N most similar terms"
 txtRestart :: String
 txtRestart = "Random walk restart probability (default a = 0.15)"
 
-txtSaveGenes :: String
-txtSaveGenes = "Save genes when creating output"
-
-txtSaveTerms :: String
-txtSaveTerms = "Save genes when creating output"
-
 txtExcludeGenes :: String
 txtExcludeGenes = "Exclude genes when saving output"
 
@@ -164,6 +160,9 @@ txtExcludeTerms = "Exclude ontology terms when saving output"
 
 txtInputFile :: String
 txtInputFile = "File with a list of identifiers to determine similarity"
+
+txtPermute :: String
+txtPermute = "Generates graph permutations up to N for permutation testing"
 
 txtOutput :: String
 txtOutput = "File to save data to"
@@ -195,8 +194,10 @@ options = Options {
                         typ "BOOL" &= help txtExcludeTerms
     , optInputFile = def &= explicit &= C.name "input-file" &= typFile &= 
                      help txtInputFile
+    , optPermute = def &= explicit &= C.name "permute" &= typ "INT" &= 
+                   help txtPermute
     , argOutput = def &= argPos 0 &= typFile
-} -- &= summary _INFO &= program _EXEC
+}
 
 
 ---- Retrieves options and command line arguments specified by the user.
@@ -234,7 +235,7 @@ optionHandler opts@Options{..}  = do
         putStrLn "--annotations" >> 
         exitWith (ExitFailure 1)
 
-    when (optRestart <= 0.0 || optRestart >= 1.0) $
+    when (optRestart < 0.0 || optRestart >= 1.0) $
         putStrLn "The restart probability must be found in (0, 1)" >>
         exitWith (ExitFailure 1)
 
@@ -408,6 +409,12 @@ sortResults :: [(Entity, Double)] -> [(Entity, Double)]
 --
 sortResults = sortOn snd
 
+-- | Handles the --similar-to option which allows the user to specify one or
+-- | more entities (usually ontology terms) and calculate similarity between
+-- | these entities and all others
+--
+--handleSimilarTo :: Options -> 
+
 handleInputOptions :: Options -> Map Entity Int -> VS.Vector Double -> IO ()
 --
 handleInputOptions opts@Options{..} me graph
@@ -485,7 +492,8 @@ exec opts@Options{..} = do
     scream verb "Manipulating stored entities..."
 
     --let entities = V.cons sinkEntity $!! flattenEntities fEdges fGenesets fAnnotations fTerms
-    let entities = flattenEntities fEdges fGenesets fAnnotations fTerms
+    --let entities = flattenEntities fEdges fGenesets fAnnotations fTerms
+    let entities = V.cons sinkEntity $!! flattenEntities fEdges fGenesets fAnnotations fTerms
     let graphSize = V.length entities
 
     scream verb $ show (V.length $ onlyTerms entities) ++ " unique terms"
@@ -502,6 +510,7 @@ exec opts@Options{..} = do
 
     --let graphMatrix = updateDanglingNodes (getIndex sinkEntity entityIndex) graphSize $!! 
     let graphMatrix = 
+                      updateDanglingNodes (getIndex sinkEntity entityIndex) graphSize $!!
                       make1DMatrix graphSize $!! 
                       updateAdjacencyList False entityIndex fEdges $!! 
                       updateAdjacencyList' True entityIndex fGenesets $!!
