@@ -16,7 +16,7 @@ module Main where
 
 import Control.DeepSeq          (($!!), deepseq)
 import Control.Monad            (forM_, when)
-import Data.List                (intercalate, sortBy)
+import Data.List                (intercalate, sortBy, sortOn)
 import Data.List.Split          (splitOn)
 import Data.Map.Strict          (Map)
 import Data.Set                 (Set)
@@ -401,8 +401,12 @@ scream False _ = return ()
 filterResults :: Options -> [(Entity, Double)] -> [(Entity, Double)]
 --
 filterResults Options{..} = removeGenes optExcludeGenes . 
-                               removeGenesets optExcludeSets .
-                               removeTerms optExcludeTerms
+                            removeGenesets optExcludeSets .
+                            removeTerms optExcludeTerms
+
+sortResults :: [(Entity, Double)] -> [(Entity, Double)]
+--
+sortResults = sortOn snd
 
 handleInputOptions :: Options -> Map Entity Int -> VS.Vector Double -> IO ()
 --
@@ -412,7 +416,7 @@ handleInputOptions opts@Options{..} me graph
 
             let termIndex = getIndex (termEntity (B.pack term) "") me
             let result = randomWalk (M.size me) 1 (VS.singleton termIndex) graph restart 
-            let result' = filterResults opts $ proxToEnts me result
+            let result' = sortResults $ filterResults opts $ proxToEnts me result
 
             writeOutputHeader (makeGOFilePath term)
             writeWalkedRelations' (makeGOFilePath term) (termEntity (B.pack term) "") result'
