@@ -399,8 +399,8 @@ scream False _ = return ()
 
 filterResults :: Options -> [(Entity, Double)] -> [(Entity, Double)]
 --
-filterResults Options{..} rs = removeGenes optExcludeGenes $ 
-                               removeGenesets optExcludeSets $ 
+filterResults Options{..} = removeGenes optExcludeGenes . 
+                               removeGenesets optExcludeSets .
                                removeTerms optExcludeTerms
 
 handleInputOptions :: Options -> Map Entity Int -> VS.Vector Double -> IO ()
