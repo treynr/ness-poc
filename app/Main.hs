@@ -22,7 +22,7 @@ import Data.Set                 (Set)
 import Data.Time                (getCurrentTime, toGregorian, utctDay)
 import Data.Vector              (Vector)
 import Data.Vector.Storable     ((!))
-import Development.GitRev       (gitBranch, gitHash)
+import Development.GitRev       (gitBranch, gitCommitCount, gitHash)
 import System.Console.CmdArgs
 import System.Environment       (getArgs, withArgs)
 import System.Exit              (ExitCode(..), exitWith)
@@ -73,6 +73,12 @@ data Options = Options {
       , saveGenes :: Bool
         -- Save terms when creating output
       , saveTerms :: Bool
+        -- Exclude gene entities when saving output
+      , optExcludeGenes :: Bool
+        -- Exclude gene set entities when saving output
+      , optExcludeSets :: Bool
+        -- Exclude ontology term entities when saving output
+      , optExcludeTerms :: Bool
         -- Required argument: the output file data is saved to
       , output :: FilePath
 
@@ -85,7 +91,7 @@ _EXEC :: String
 _EXEC = "walker"
 
 _VERS :: String
-_VERS = "0.1.0"
+_VERS = "0.1." ++ $(gitCommitCount)
 
 _HASH :: String
 _HASH = $(gitBranch) ++ "@" ++ $(gitHash)
@@ -124,51 +130,48 @@ _DTAG cols = do
 -- Text to display when viewing program options
 --
 optEdges :: String
---
 optEdges = "Add the contents of the edge list file to the entity graph"
 
 optGenesets :: String
---
 optGenesets = "Add the contents of the gene set file to the entity graph"
 
 optAnnotations :: String
---
 optAnnotations = "Add the contents of the annotation file to the entity graph"
 
 optOntology :: String
---
 optOntology = "Add ontology relationships to the entity graph"
 
 optSimilarTo :: String
---
 optSimilarTo = "Calculate similarity for the given ontology term"
 
 optSimilarGroup :: String
---
 optSimilarGroup = "Calculate similarity for the given group of entities"
 
 optTop :: String
---
 optTop = "Only include the top N most similar terms"
 
 optRestart :: String
---
 optRestart = "Random walk restart probability (default a = 0.15)"
 
 optSaveGenes :: String
---
 optSaveGenes = "Save genes when creating output"
 
 optSaveTerms :: String
---
 optSaveTerms = "Save genes when creating output"
 
+txtExcludeGenes :: String
+txtExcludeGenes = "Exclude genes when saving output"
+
+txtExcludeSets :: String
+txtExcludeSets = "Exclude gene sets when saving output"
+
+txtExcludeTerms :: String
+txtExcludeTerms = "Exclude ontology terms when saving output"
+
 optInputFile :: String
---
 optInputFile = "File with a list of identifiers to determine similarity"
 
 argOutput :: String
---
 argOutput = "File to save data to"
 
 ---- Fills in info about the program's options.
@@ -185,6 +188,9 @@ options = Options {
     , restart = def &= explicit &= C.name "restart" &= typ "FLOAT" &= help optRestart
     , saveGenes = def &= explicit &= C.name "save-genes" &= typ "BOOL" &= help optSaveGenes
     , saveTerms = def &= explicit &= C.name "save-terms" &= typ "BOOL" &= help optSaveTerms
+    , optExcludeGenes = def &= explicit &= C.name "exclude-genes" &= typ "BOOL" &=help txtExcludeGenes
+    , optExcludeSets = def &= explicit &= C.name "exclude-sets" &= typ "BOOL" &=help txtExcludeSets
+    , optExcludeTerms = def &= explicit &= C.name "exclude-terms" &= typ "BOOL" &=help txtExcludeTerms
     , inputFile = def &= explicit &= C.name "input-file" &= typFile &= help optInputFile
     , output = def &= argPos 0 &= typFile
 } -- &= summary _INFO &= program _EXEC
@@ -198,7 +204,7 @@ getOptions = cmdArgs $ options
     &= verbosity
     &= versionArg [explicit, C.name "version", summary _INFO]
     &= summary _INFO
-    &= help _DESC
+    &= help (_NAME ++ "\n" ++ _DESC)
     &= helpArg [explicit, C.name "help", C.name "h"]
     &= program _EXEC
 
@@ -391,22 +397,26 @@ scream :: Bool -> String -> IO ()
 scream True s = putStrLn s
 scream False _ = return ()
 
+filterResults :: Options -> [(Entity, Double)] -> [(Entity, Double)]
+--
+filterResults Options{..} rs = removeGenes optExcludeGenes $ 
+                               removeGenesets optExcludeSets $ 
+                               removeTerms optExcludeTerms
+
 handleInputOptions :: Options -> Map Entity Int -> VS.Vector Double -> IO ()
 --
-handleInputOptions Options{..} me graph
+handleInputOptions opts@Options{..} me graph
     | not $ null similarTo = do
         forM_ (handleSimilarTo similarTo) $ \term -> do
 
-            --scream verb $ "Finding terms similar to " ++ term ++ "..."
-
             let termIndex = getIndex (termEntity (B.pack term) "") me
             let result = randomWalk (M.size me) 1 (VS.singleton termIndex) graph restart 
-
-            --scream verb "Transitioning to C code..."
+            let result' = filterResults opts $ proxToEnts me result
 
             writeOutputHeader (makeGOFilePath term)
+            writeWalkedRelations' (makeGOFilePath term) (termEntity (B.pack term) "") result'
 
-            writeWalkedRelations (makeGOFilePath term) me result $ termEntity (B.pack term) ""
+            --writeWalkedRelations (makeGOFilePath term) me result $ termEntity (B.pack term) ""
 
     | not $ null similarGroup = do
         let group = fmap (\t -> getIndex (termEntity (B.pack t) "") me) $ handleSimilarTo similarGroup
