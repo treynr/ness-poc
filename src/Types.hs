@@ -7,6 +7,7 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Types where
 
@@ -66,4 +67,29 @@ instance Eq Term where
 
 instance Ord Term where
     compare (Term x _) (Term y _) = compare x y
+
+-- Helper functions for determining entity types.
+--
+
+
+-- | Returns true if the given Entity is a Gene.
+--
+isEGene :: Entity -> Bool
+--
+isEGene (EGene _) = True
+isEGene _ = False
+
+-- | Returns true if the given Entity is a GeneSet.
+--
+isEGeneSet :: Entity -> Bool
+--
+isEGeneSet (EGeneSet _) = True
+isEGeneSet _ = False
+
+-- | Returns true if the given Entity is a Term.
+--
+isETerm :: Entity -> Bool
+--
+isETerm (ETerm _) = True
+isETerm _ = False
 

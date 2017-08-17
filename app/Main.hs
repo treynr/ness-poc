@@ -41,10 +41,7 @@ import qualified Data.Vector.Storable   as VS
 import Entity
 import File
 import Graph
---import Graph2 (updateAdjacencyList, updateAdjacencyList')
 import Types
---import Walk
---import Walk2
 import WalkFFI
 import Utility
 
@@ -52,36 +49,32 @@ import Utility
 --
 data Options = Options {
 
-        -- Edge list file
-        edges :: FilePath
-        -- Gene set file
-      , genesets :: FilePath
-        -- Annotation file
-      , annotations :: FilePath
-        -- File containing term-term relationships from an ontology
-      , ontology :: FilePath
-        -- Calculate similarity for the given term
-      , similarTo :: String
-        -- Calculate similarity for the given group of entities
-      , similarGroup :: String
-        -- Top N most similar terms
-      , top :: Int
-        -- Restart probability
-      , restart :: Double
-        -- File w/ a list of identifiers to determine similarity 
-      , inputFile :: FilePath
-        -- Save genes when creating output
-      , saveGenes :: Bool
-        -- Save terms when creating output
-      , saveTerms :: Bool
-        -- Exclude gene entities when saving output
-      , optExcludeGenes :: Bool
-        -- Exclude gene set entities when saving output
-      , optExcludeSets :: Bool
-        -- Exclude ontology term entities when saving output
-      , optExcludeTerms :: Bool
-        -- Required argument: the output file data is saved to
-      , output :: FilePath
+    -- Edge list file
+    optEdges :: FilePath
+    -- Gene set file
+  , optGenesets :: FilePath
+    -- Annotation file
+  , optAnnotations :: FilePath
+    -- File containing term-term relationships from an ontology
+  , optOntology :: FilePath
+    -- Calculate similarity for the given term
+  , optSimilarTo :: String
+    -- Calculate similarity for the given group of entities
+  , optSimilarGroup :: String
+    -- Top N most similar terms
+  , optTop :: Int
+    -- Restart probability
+  , optRestart :: Double
+    -- File w/ a list of identifiers to determine similarity 
+  , optInputFile :: FilePath
+    -- Exclude gene entities when saving output
+  , optExcludeGenes :: Bool
+    -- Exclude gene set entities when saving output
+  , optExcludeSets :: Bool
+    -- Exclude ontology term entities when saving output
+  , optExcludeTerms :: Bool
+    -- Required argument: the output file data is saved to
+  , argOutput :: FilePath
 
 } deriving (Data, Eq, Show, Typeable)
 
@@ -130,35 +123,35 @@ _DTAG cols = do
 
 -- Text to display when viewing program options
 --
-optEdges :: String
-optEdges = "Add the contents of the edge list file to the entity graph"
+txtEdges :: String
+txtEdges = "Add the contents of the edge list file to the entity graph"
 
-optGenesets :: String
-optGenesets = "Add the contents of the gene set file to the entity graph"
+txtGenesets :: String
+txtGenesets = "Add the contents of the gene set file to the entity graph"
 
-optAnnotations :: String
-optAnnotations = "Add the contents of the annotation file to the entity graph"
+txtAnnotations :: String
+txtAnnotations = "Add the contents of the annotation file to the entity graph"
 
-optOntology :: String
-optOntology = "Add ontology relationships to the entity graph"
+txtOntology :: String
+txtOntology = "Add ontology relationships to the entity graph"
 
-optSimilarTo :: String
-optSimilarTo = "Calculate similarity for the given ontology term"
+txtSimilarTo :: String
+txtSimilarTo = "Calculate similarity for the given ontology term"
 
-optSimilarGroup :: String
-optSimilarGroup = "Calculate similarity for the given group of entities"
+txtSimilarGroup :: String
+txtSimilarGroup = "Calculate similarity for the given group of entities"
 
-optTop :: String
-optTop = "Only include the top N most similar terms"
+txtTop :: String
+txtTop = "Only include the top N most similar terms"
 
-optRestart :: String
-optRestart = "Random walk restart probability (default a = 0.15)"
+txtRestart :: String
+txtRestart = "Random walk restart probability (default a = 0.15)"
 
-optSaveGenes :: String
-optSaveGenes = "Save genes when creating output"
+txtSaveGenes :: String
+txtSaveGenes = "Save genes when creating output"
 
-optSaveTerms :: String
-optSaveTerms = "Save genes when creating output"
+txtSaveTerms :: String
+txtSaveTerms = "Save genes when creating output"
 
 txtExcludeGenes :: String
 txtExcludeGenes = "Exclude genes when saving output"
@@ -169,31 +162,40 @@ txtExcludeSets = "Exclude gene sets when saving output"
 txtExcludeTerms :: String
 txtExcludeTerms = "Exclude ontology terms when saving output"
 
-optInputFile :: String
-optInputFile = "File with a list of identifiers to determine similarity"
+txtInputFile :: String
+txtInputFile = "File with a list of identifiers to determine similarity"
 
-argOutput :: String
-argOutput = "File to save data to"
+txtOutput :: String
+txtOutput = "File to save data to"
 
 ---- Fills in info about the program's options.
 --
 options :: Options
 options = Options {
-      edges = def &= explicit &= C.name "edges" &= typFile &= help optEdges
-    , genesets = def &= explicit &= C.name "genesets" &= typFile &= help optGenesets
-    , annotations = def &= explicit &= C.name "annotations" &= typFile &= help optAnnotations
-    , ontology = def &= explicit &= C.name "ontology" &= typFile &= help optOntology
-    , similarTo = def &= explicit &= C.name "similar-to" &= typ "STRING" &= help optSimilarTo
-    , similarGroup = def &= explicit &= C.name "similar-group" &= typ "STRING" &= help optSimilarGroup
-    , top = def &= explicit &= C.name "top" &= typ "INT" &= help optTop
-    , restart = def &= explicit &= C.name "restart" &= typ "FLOAT" &= help optRestart
-    , saveGenes = def &= explicit &= C.name "save-genes" &= typ "BOOL" &= help optSaveGenes
-    , saveTerms = def &= explicit &= C.name "save-terms" &= typ "BOOL" &= help optSaveTerms
-    , optExcludeGenes = def &= explicit &= C.name "exclude-genes" &= typ "BOOL" &=help txtExcludeGenes
-    , optExcludeSets = def &= explicit &= C.name "exclude-sets" &= typ "BOOL" &=help txtExcludeSets
-    , optExcludeTerms = def &= explicit &= C.name "exclude-terms" &= typ "BOOL" &=help txtExcludeTerms
-    , inputFile = def &= explicit &= C.name "input-file" &= typFile &= help optInputFile
-    , output = def &= argPos 0 &= typFile
+      optEdges = def &= explicit &= C.name "e" &= C.name "edges" &= typFile &=
+                 help txtEdges
+    , optGenesets = def &= explicit &= C.name "g" &= C.name "genesets" &= 
+                    typFile &= help txtGenesets
+    , optAnnotations = def &= explicit &= C.name "a" &= C.name "annotations" &=
+                       typFile &= help txtAnnotations
+    , optOntology = def &= explicit &= C.name "o" &= C.name "ontology" &= 
+                    typFile &= help txtOntology
+    , optSimilarTo = def &= explicit &= C.name "similar-to" &= typ "STRING" &= 
+                     help txtSimilarTo
+    , optSimilarGroup = def &= explicit &= C.name "similar-group" &= 
+                        typ "STRING" &= help txtSimilarGroup
+    , optTop = def &= explicit &= C.name "top" &= typ "INT" &= help txtTop
+    , optRestart = def &= explicit &= C.name "restart" &= typ "FLOAT" &= 
+                   help txtRestart
+    , optExcludeGenes = def &= explicit &= C.name "exclude-genes" &= 
+                        typ "BOOL" &= help txtExcludeGenes
+    , optExcludeSets = def &= explicit &= C.name "exclude-sets" &= 
+                       typ "BOOL" &= help txtExcludeSets
+    , optExcludeTerms = def &= explicit &= C.name "exclude-terms" &= 
+                        typ "BOOL" &= help txtExcludeTerms
+    , optInputFile = def &= explicit &= C.name "input-file" &= typFile &= 
+                     help txtInputFile
+    , argOutput = def &= argPos 0 &= typFile
 } -- &= summary _INFO &= program _EXEC
 
 
@@ -222,27 +224,23 @@ main = do
 optionHandler :: Options -> IO ()
 optionHandler opts@Options{..}  = do
 
-    when (null output) $
+    when (null argOutput) $
         putStrLn "You must specify an output file" >> exitWith (ExitFailure 1)
 
-    when (null edges && null genesets && null annotations && null ontology) $
+    when (null optEdges && null optGenesets && null optAnnotations && null optOntology) $
         putStrLn "You must specify at least one of these options:" >>
         putStrLn "--edges" >> 
         putStrLn "--genesets" >>
         putStrLn "--annotations" >> 
         exitWith (ExitFailure 1)
 
-    when (restart < 0.0 || restart >= 1.0) $
+    when (optRestart <= 0.0 || optRestart >= 1.0) $
         putStrLn "The restart probability must be found in (0, 1)" >>
         exitWith (ExitFailure 1)
 
     exec opts {
-          edges = edges
-        , genesets = genesets
-        , annotations = annotations
-        , ontology = ontology
-        , restart = if restart <= 0.0 then 0.15 else restart
-        , output = output
+        -- When no restart prob. is given we set the default to be 0.15
+        optRestart = if optRestart <= 0.0 then 0.15 else optRestart
     }
 
 --handleEdges :: FilePath -> IO [(Entity, Entity)]
@@ -273,9 +271,11 @@ handleOntology :: FilePath -> IO (Vector (Entity, Entity))
 handleOntology "" = return V.empty
 handleOntology fp = readTermFile fp
 
-handleSimilarTo :: String -> [String]
+-- | Splits a comma delimited string into a list of strings.
 --
-handleSimilarTo = fmap strip . splitOn ","
+convertCommaString :: String -> [String]
+--
+convertCommaString = fmap strip . splitOn ","
     where
         strip = reverse . dropWhile (== ' ') . reverse . dropWhile (== ' ')
 
@@ -411,11 +411,11 @@ sortResults = sortOn snd
 handleInputOptions :: Options -> Map Entity Int -> VS.Vector Double -> IO ()
 --
 handleInputOptions opts@Options{..} me graph
-    | not $ null similarTo = do
-        forM_ (handleSimilarTo similarTo) $ \term -> do
+    | not $ null optSimilarTo = do
+        forM_ (convertCommaString optSimilarTo) $ \term -> do
 
             let termIndex = getIndex (termEntity (B.pack term) "") me
-            let result = randomWalk (M.size me) 1 (VS.singleton termIndex) graph restart 
+            let result = randomWalk (M.size me) 1 (VS.singleton termIndex) graph optRestart 
             let result' = sortResults $ filterResults opts $ proxToEnts me result
 
             writeOutputHeader (makeGOFilePath term)
@@ -423,23 +423,20 @@ handleInputOptions opts@Options{..} me graph
 
             --writeWalkedRelations (makeGOFilePath term) me result $ termEntity (B.pack term) ""
 
-    | not $ null similarGroup = do
-        let group = fmap (\t -> getIndex (termEntity (B.pack t) "") me) $ handleSimilarTo similarGroup
+    | not $ null optSimilarGroup = do
+        let group = fmap (\t -> getIndex (termEntity (B.pack t) "") me) $ convertCommaString optSimilarGroup
         let seeds = VS.fromList group
 
-        let result = randomWalk (M.size me) 1 seeds graph restart 
+        let result = randomWalk (M.size me) 1 seeds graph optRestart 
 
             --scream verb "Transitioning to C code..."
 
-        writeOutputHeader output
+        writeOutputHeader argOutput
 
-        writeWalkedRelations output me result $ termEntity (B.pack similarGroup) ""
+        writeWalkedRelations argOutput me result $ termEntity (B.pack optSimilarGroup) ""
 
-    | not $ null inputFile = do
-        inputs' <- separateMissingInputs me <$> readInputFile inputFile
-        --inputs <- readInputFile inputFile
-        --let inputs' = separateMissingInputs me inputs
-        verb <- isLoud
+    | not $ null optInputFile = do
+        inputs' <- separateMissingInputs me <$> readInputFile optInputFile
 
         if (length $ snd inputs') > 0 
         then do
@@ -448,16 +445,15 @@ handleInputOptions opts@Options{..} me graph
         else
             return ()
 
-        writeOutputHeader output
+        writeOutputHeader argOutput
 
         forM_ (fst inputs') $ \ent -> do
 
             let termIndex = getIndex ent me
-            let result = randomWalk (M.size me) 1 (VS.singleton termIndex) graph restart
-            let result' = removeGenes (not saveGenes) $ removeTerms (not saveTerms) $ 
-                          removeGenesets True $ proxToEnts me result
+            let result = randomWalk (M.size me) 1 (VS.singleton termIndex) graph optRestart
+            let result' = sortResults $ filterResults opts $ proxToEnts me result
 
-            writeWalkedRelations' output ent result'
+            writeWalkedRelations' argOutput ent result'
 
     | otherwise = return ()
     where
@@ -476,10 +472,10 @@ exec opts@Options{..} = do
 
     scream verb "Reading files..."
 
-    fEdges <- handleEdges edges
-    fGenesets <- handleGenesets genesets
-    fAnnotations <- handleAnnotations annotations
-    fTerms <- handleOntology ontology
+    fEdges <- handleEdges optEdges
+    fGenesets <- handleGenesets optGenesets
+    fAnnotations <- handleAnnotations optAnnotations
+    fTerms <- handleOntology optOntology
 
     scream verb $ "Loaded " ++ show (V.length fEdges) ++ " network edges"
     scream verb $ "Loaded " ++ show (V.length fGenesets) ++ " gene sets"
