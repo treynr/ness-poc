@@ -40,6 +40,7 @@ type Annotation = (ByteString, [Gene])
 data Entity = EGene Gene
             | EGeneSet GeneSet
             | ETerm Term
+            | Sink
             | Invalid
             deriving (Show, Eq, Ord, Generic, NFData)
 
@@ -92,4 +93,11 @@ isETerm :: Entity -> Bool
 --
 isETerm (ETerm _) = True
 isETerm _ = False
+
+-- | Returns true if the given Entity is the special Sink type.
+--
+isSink :: Entity -> Bool
+--
+isSink (Sink) = True
+isSink _ = False
 

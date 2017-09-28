@@ -6,6 +6,7 @@
 --
 
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
@@ -15,7 +16,7 @@
 module Main where
 
 import Control.DeepSeq          (($!!), deepseq)
-import Control.Monad            (forM_, when)
+import Control.Monad            (forM,forM_, join,when)
 import Data.List                (intercalate, sortBy, sortOn)
 import Data.List.Split          (splitOn)
 import Data.Map.Strict          (Map)
@@ -27,6 +28,7 @@ import Development.GitRev       (gitBranch, gitCommitCount, gitHash)
 import System.Console.CmdArgs
 import System.Environment       (getArgs, withArgs)
 import System.Exit              (ExitCode(..), exitWith)
+import System.Random.Shuffle    (shuffleM)
 
 import qualified Data.ByteString.Char8  as B
 -- Fucking name collision
@@ -54,9 +56,9 @@ data Options = Options {
     -- Gene set file
   , optGenesets :: FilePath
     -- Annotation file
-  , optAnnotations :: FilePath
+  , optAnnotations :: [FilePath]
     -- File containing term-term relationships from an ontology
-  , optOntology :: FilePath
+  , optOntology :: [FilePath]
     -- Calculate similarity for the given term
   , optSimilarTo :: String
     -- Calculate similarity for the given group of entities
@@ -259,18 +261,21 @@ handleGenesets "" = return V.empty
 handleGenesets fp = readGenesetFile fp
 
 --handleAnnotations :: FilePath -> IO [(Entity, Entity)]
-handleAnnotations :: FilePath -> IO (Vector (Entity, Entity))
+handleAnnotations :: [FilePath] -> IO (Vector (Entity, Entity))
 --
 --handleAnnotations "" = return []
-handleAnnotations "" = return V.empty
-handleAnnotations fp = readAnnotationFile fp
+handleAnnotations [] = return V.empty
+handleAnnotations fps = V.concat <$> (forM fps $ \f -> readAnnotationFile f)
 
 --handleOntology :: FilePath -> IO [(Entity, Entity)]
-handleOntology :: FilePath -> IO (Vector (Entity, Entity))
+--handleOntology :: FilePath -> IO (Vector (Entity, Entity))
+handleOntology :: [FilePath] -> IO (Vector (Entity, Entity))
 --
 --handleOntology "" = return []
-handleOntology "" = return V.empty
-handleOntology fp = readTermFile fp
+--handleOntology "" = return V.empty
+--handleOntology fp = readTermFile fp
+handleOntology [] = return V.empty
+handleOntology fs = V.concat <$> (forM fs $ \f -> readTermFile f)
 
 -- | Splits a comma delimited string into a list of strings.
 --
@@ -291,26 +296,21 @@ makeGOFilePath s
 removeGenesets :: Bool -> [(Entity, Double)] -> [(Entity, Double)]
 --
 removeGenesets False = id
-removeGenesets _ = filter (not . isSet . fst)
-    where
-        isSet (EGeneSet _) = True
-        isSet _ = False
+removeGenesets _ = filter (not . isEGeneSet . fst)
 
 removeTerms :: Bool -> [(Entity, Double)] -> [(Entity, Double)]
 --
 removeTerms False = id
-removeTerms _ = filter (not . isTerm . fst)
-    where
-        isTerm (ETerm _) = True
-        isTerm _ = False
+removeTerms _ = filter (not . isETerm . fst)
 
 removeGenes :: Bool -> [(Entity, Double)] -> [(Entity, Double)]
 --
 removeGenes False = id
-removeGenes _ = filter (not . isGene . fst)
-    where
-        isGene (EGene _) = True
-        isGene _ = False
+removeGenes _ = filter (not . isEGene . fst)
+
+removeSink :: [(Entity, Double)] -> [(Entity, Double)]
+--
+removeSink = filter (not . isSink . fst)
 
 proxToEnts :: Map Entity Int -> VS.Vector Double -> [(Entity, Double)]
 --
@@ -401,7 +401,8 @@ scream False _ = return ()
 
 filterResults :: Options -> [(Entity, Double)] -> [(Entity, Double)]
 --
-filterResults Options{..} = removeGenes optExcludeGenes . 
+filterResults Options{..} = removeSink .
+                            removeGenes optExcludeGenes . 
                             removeGenesets optExcludeSets .
                             removeTerms optExcludeTerms
 
@@ -409,11 +410,55 @@ sortResults :: [(Entity, Double)] -> [(Entity, Double)]
 --
 sortResults = sortOn snd
 
+permuteGraphLabels :: Map Entity Int -> IO (Map Entity Int)
+--
+permuteGraphLabels me = do
+    keys <- shuffleM $ M.keys me
+    vals <- shuffleM $ M.elems me
+
+    return $ M.fromList $ zip keys vals
+
 -- | Handles the --similar-to option which allows the user to specify one or
 -- | more entities (usually ontology terms) and calculate similarity between
 -- | these entities and all others
 --
---handleSimilarTo :: Options -> 
+handleSimilarTo :: Options -> Map Entity Int -> VS.Vector Double -> IO ()
+--
+handleSimilarTo opts@Options{..} me graph
+    | null optSimilarTo = return ()
+
+    -- This will output RWR scores for permutations of the original graph
+    --
+    | optPermute > 1 = do
+
+        writeOutputHeader argOutput
+
+        forM_ (convertCommaString optSimilarTo) $ \term -> do
+
+            forM_ [1 .. optPermute] $ \_ -> do
+                me' <- permuteGraphLabels me
+
+                let result = randomWalk msize 1 (vterm me' term) graph optRestart 
+                let result' = sortResults $ filterResults opts $ proxToEnts me' result
+
+                writeWalkedRelations' argOutput (termEntity (B.pack term) "") result'
+
+    -- Normal walk, no permutation testing
+    --
+    | otherwise = do
+
+        writeOutputHeader argOutput
+
+        forM_ (convertCommaString optSimilarTo) $ \term -> do
+
+            let result = randomWalk msize 1 (vterm me term) graph optRestart 
+            let result' = sortResults $ filterResults opts $ proxToEnts me result
+
+            writeWalkedRelations' argOutput (termEntity (B.pack term) "") result'
+    where
+        termIndex m t = getIndex (termEntity (B.pack t) "") m
+        vterm m t = VS.singleton $ termIndex m t
+        msize = M.size me
 
 handleInputOptions :: Options -> Map Entity Int -> VS.Vector Double -> IO ()
 --
@@ -493,7 +538,7 @@ exec opts@Options{..} = do
 
     --let entities = V.cons sinkEntity $!! flattenEntities fEdges fGenesets fAnnotations fTerms
     --let entities = flattenEntities fEdges fGenesets fAnnotations fTerms
-    let entities = V.cons sinkEntity $!! flattenEntities fEdges fGenesets fAnnotations fTerms
+    let entities = V.cons Sink $!! flattenEntities fEdges fGenesets fAnnotations fTerms
     let graphSize = V.length entities
 
     scream verb $ show (V.length $ onlyTerms entities) ++ " unique terms"
@@ -510,7 +555,7 @@ exec opts@Options{..} = do
 
     --let graphMatrix = updateDanglingNodes (getIndex sinkEntity entityIndex) graphSize $!! 
     let graphMatrix = 
-                      updateDanglingNodes (getIndex sinkEntity entityIndex) graphSize $!!
+                      updateDanglingNodes (getIndex Sink entityIndex) graphSize $!!
                       make1DMatrix graphSize $!! 
                       updateAdjacencyList False entityIndex fEdges $!! 
                       updateAdjacencyList' True entityIndex fGenesets $!!
@@ -527,7 +572,8 @@ exec opts@Options{..} = do
 
     deepseq graphMatrix' $ scream verb "done"
 
-    handleInputOptions opts entityIndex graphMatrix'
+    --handleInputOptions opts entityIndex graphMatrix'
+    handleSimilarTo opts entityIndex graphMatrix'
 
     scream verb "Done!"
 

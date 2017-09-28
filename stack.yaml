@@ -61,8 +61,8 @@ extra-package-dbs: []
 # arch: x86_64
 #
 # Extra directories used by stack for building
-extra-include-dirs: [/projects/chesler-lab/walker/csrc]
-extra-lib-dirs: [/projects/chesler-lab/walker/csrc]
+extra-include-dirs: [/projects/chesler-lab/analysis-term-similarity/walker/csrc]
+extra-lib-dirs: [/projects/chesler-lab/analysis-term-similarity/walker/csrc]
 #
 # Allow a newer minor version of GHC than the snapshot specifies
 # compiler-check: newer-minor
