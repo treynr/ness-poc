@@ -488,12 +488,13 @@ handleInputOptions opts@Options{..} me graph
         writeWalkedRelations argOutput me result $ termEntity (B.pack optSimilarGroup) ""
 
     | not $ null optInputFile = do
+
         inputs' <- separateMissingInputs me <$> readInputFile optInputFile
 
         if (length $ snd inputs') > 0 
         then do
             putStrLn "The following input entities are not present in the graph"
-            putStrLn $ show $ snd inputs'
+            putStrLn $ show $ B.intercalate ", " $ fmap entToBS $ snd inputs'
         else
             return ()
 
@@ -513,6 +514,10 @@ handleInputOptions opts@Options{..} me graph
         onlyValidEntities m ls = filter (\k -> M.member k m) ls
         noValidEntities m ls = filter (\k -> not $ M.member k m) ls
         removeNonInputs s = filter (\(e, _) -> S.member e s) 
+        entToBS (EGene g) = B.pack $ show $ ode g
+        entToBS (EGeneSet g) = B.pack $ show $ gsid g
+        entToBS (ETerm t) = uid t
+        entToBS _ = "UNKNOWN"
 
 ---- Where all the execution magic happens. 
 --
@@ -572,7 +577,7 @@ exec opts@Options{..} = do
 
     deepseq graphMatrix' $ scream verb "done"
 
-    --handleInputOptions opts entityIndex graphMatrix'
+    handleInputOptions opts entityIndex graphMatrix'
     handleSimilarTo opts entityIndex graphMatrix'
 
     scream verb "Done!"

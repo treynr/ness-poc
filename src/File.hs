@@ -165,8 +165,9 @@ toInput :: [ByteString] -> Entity
 toInput bs
     | length bs /= 2 = Invalid
     | (bs !! 0) == "gene" = EGene $! Gene $! toInt $ bs !! 1
-    | (bs !! 0) == "term" = ETerm $! (Term (bs !! 1) "")
-    | otherwise = Invalid
+    | otherwise = ETerm $! (Term (B.intercalate ":" bs) "")
+    -- | (bs !! 0) == "term" = ETerm $! (Term (bs !! 1) "")
+    -- | otherwise = Invalid
     where
         toInt = fst . fromMaybe (0, "") . B.readInt
 
