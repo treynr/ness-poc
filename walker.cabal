@@ -53,6 +53,7 @@ executable walker
                      , cmdargs
                      , deepseq
                      , gitrev
+                     , random
                      , random-shuffle
                      , split
                      , time

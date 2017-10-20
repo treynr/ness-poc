@@ -28,6 +28,7 @@ import Development.GitRev       (gitBranch, gitCommitCount, gitHash)
 import System.Console.CmdArgs
 import System.Environment       (getArgs, withArgs)
 import System.Exit              (ExitCode(..), exitWith)
+import System.Random            (getStdRandom, randomR)
 import System.Random.Shuffle    (shuffleM)
 
 import qualified Data.ByteString.Char8  as B
@@ -77,6 +78,10 @@ data Options = Options {
   , optExcludeTerms :: Bool
     -- Generates graph permutations up to N for permutation testing
   , optPermute :: Int
+    -- Adds X% of noise (false associations/edges) to the graph
+  , optNoise :: Int
+    -- Removes X% of associations/edges from the graph
+  , optMissing :: Int
     -- Required argument: the output file data is saved to
   , argOutput :: FilePath
 
@@ -166,6 +171,12 @@ txtInputFile = "File with a list of identifiers to determine similarity"
 txtPermute :: String
 txtPermute = "Generates graph permutations up to N for permutation testing"
 
+txtNoise :: String
+txtNoise = "Randomly add X% of false edges to the graph to simulate noise"
+
+txtMissing :: String
+txtMissing = "Randomly remove X% of edges from the graph to simulate missing information"
+
 txtOutput :: String
 txtOutput = "File to save data to"
 
@@ -198,6 +209,10 @@ options = Options {
                      help txtInputFile
     , optPermute = def &= explicit &= C.name "permute" &= typ "INT" &= 
                    help txtPermute
+    , optNoise = def &= explicit &= C.name "noise" &= typ "INT" &= 
+                   help txtNoise
+    , optMissing = def &= explicit &= C.name "missing" &= typ "INT" &= 
+                   help txtMissing
     , argOutput = def &= argPos 0 &= typFile
 }
 
@@ -519,6 +534,36 @@ handleInputOptions opts@Options{..} me graph
         entToBS (ETerm t) = uid t
         entToBS _ = "UNKNOWN"
 
+handleNoise :: Options -> VS.Vector Double -> IO (VS.Vector Double)
+--
+handleNoise Options{..} vs
+    | optNoise == 0 = return vs
+    | otherwise = do
+        updates <- addNoise -- numNoise vs
+        --let updates = addNoise numNoise vs
+        return $ VS.unsafeUpd vs updates
+    where
+        fi = fromIntegral
+        vsl = VS.length vs
+        rIndex = getStdRandom (randomR (0, vsl - 1))
+        -- Number of edges that exist in the matrix
+        numEdges = round $ VS.sum vs
+        -- Amount of false edges to add based on % noise and existing edges
+        numNoise = floor $ (fi numEdges) * ((fi optNoise) / 100.00)
+        -- Vector of indices in the matrix that don't have an edge
+        vNoEdges = VS.findIndices (== 0.0) vs
+        --addNoise 0 vs' = return []
+        --addNoise edgesLeft vs' = do
+        addNoise = do
+            edgesToUpdate <- shuffleM $ VS.toList vNoEdges
+
+            return $ fmap (\i -> (i, 1.0)) $ take numNoise edgesToUpdate
+
+            --return $ if (vs' ! idx) == 0.0
+            ----then ((idx, 1.0) : addNoise (edgesLeft - 1) vs')
+            --then (((idx, 1.0) :) <$> addNoise (edgesLeft - 1) vs')
+            --else addNoise edgesLeft vs'
+
 ---- Where all the execution magic happens. 
 --
 exec :: Options -> IO ()
@@ -569,16 +614,18 @@ exec opts@Options{..} = do
 
     scream verb "Column normalziing the graph matrix..."
 
+    graphMatrix' <- handleNoise opts graphMatrix
+
     -- Strictness is enforced in the rest of the code since we will eventually
     -- be using every single value (node) in the graph.
-    let graphMatrix' = deepseq graphMatrix $ normalize1DMatrix (M.size entityIndex) graphMatrix
+    let graphMatrix'' = deepseq graphMatrix' $ normalize1DMatrix (M.size entityIndex) graphMatrix'
 
     if verb then putStr "Forcing strictness..." else return ()
 
-    deepseq graphMatrix' $ scream verb "done"
+    deepseq graphMatrix'' $ scream verb "done"
 
-    handleInputOptions opts entityIndex graphMatrix'
-    handleSimilarTo opts entityIndex graphMatrix'
+    handleInputOptions opts entityIndex graphMatrix''
+    handleSimilarTo opts entityIndex graphMatrix''
 
     scream verb "Done!"
 
