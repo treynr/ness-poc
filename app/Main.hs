@@ -495,12 +495,10 @@ handleInputOptions opts@Options{..} me graph
         let seeds = VS.fromList group
 
         let result = randomWalk (M.size me) 1 seeds graph optRestart 
-
-            --scream verb "Transitioning to C code..."
+        let result' = sortResults $ filterResults opts $ proxToEnts me result
 
         writeOutputHeader argOutput
-
-        writeWalkedRelations argOutput me result $ termEntity (B.pack optSimilarGroup) ""
+        writeWalkedRelations' argOutput (termEntity (B.pack optSimilarGroup) "") result'
 
     | not $ null optInputFile = do
 
