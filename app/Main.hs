@@ -296,7 +296,7 @@ handleOntology fs = V.concat <$> (forM fs $ \f -> readTermFile f)
 --
 convertCommaString :: String -> [String]
 --
-convertCommaString = fmap strip . splitOn ","
+convertCommaString = fmap strip . splitOn ";"
     where
         strip = reverse . dropWhile (== ' ') . reverse . dropWhile (== ' ')
 
