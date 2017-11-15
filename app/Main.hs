@@ -97,7 +97,7 @@ _VERS :: String
 _VERS = "0.1." ++ $(gitCommitCount)
 
 _HASH :: String
-_HASH = $(gitBranch) ++ "@" ++ $(gitHash)
+_HASH = $(gitBranch) ++ "@" ++ (take 8 $(gitHash))
 
 _INFO :: String
 _INFO = _EXEC ++ " v. " ++ _VERS ++ " (" ++ _HASH ++ ")"
@@ -582,10 +582,27 @@ handleNoise Options{..} vs
 
             return $ fmap (\i -> (i, 1.0)) $ take numNoise edgesToUpdate
 
-            --return $ if (vs' ! idx) == 0.0
-            ----then ((idx, 1.0) : addNoise (edgesLeft - 1) vs')
-            --then (((idx, 1.0) :) <$> addNoise (edgesLeft - 1) vs')
-            --else addNoise edgesLeft vs'
+handleMissing :: Options -> VS.Vector Double -> IO (VS.Vector Double)
+--
+handleMissing Options{..} vs
+    | optMissing == 0 = return vs
+    | otherwise = do
+        updates <- removeEdges
+        return $ VS.unsafeUpd vs updates
+    where
+        fi = fromIntegral
+        vsl = VS.length vs
+        rIndex = getStdRandom (randomR (0, vsl - 1))
+        -- Number of edges that exist in the matrix
+        numEdges = round $ VS.sum vs
+        -- Amount of edges to remove based on % missing and existing edges
+        numMissing = floor $ (fi numEdges) * ((fi optMissing) / 100.00)
+        -- Vector of indices in the matrix that have an edge
+        vNoEdges = VS.findIndices (== 1.0) vs
+        removeEdges = do
+            edgesToUpdate <- shuffleM $ VS.toList vNoEdges
+
+            return $ fmap (\i -> (i, 0.0)) $ take numMissing edgesToUpdate
 
 ---- Where all the execution magic happens. 
 --
@@ -637,7 +654,7 @@ exec opts@Options{..} = do
 
     scream verb "Column normalziing the graph matrix..."
 
-    graphMatrix' <- handleNoise opts graphMatrix
+    graphMatrix' <- handleMissing opts =<< handleNoise opts graphMatrix
 
     -- Strictness is enforced in the rest of the code since we will eventually
     -- be using every single value (node) in the graph.
