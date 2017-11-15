@@ -475,9 +475,34 @@ handleSimilarTo opts@Options{..} me graph
         vterm m t = VS.singleton $ termIndex m t
         msize = M.size me
 
+handleGroupPermutation :: Options -> Map Entity Int -> VS.Vector Double -> IO ()
+--
+handleGroupPermutation opts@Options{..} me graph
+    | optPermute < 1 = return ()
+
+    | not $ null optSimilarGroup = do
+
+        writeOutputHeader argOutput
+
+        -- For each permutation 1 -> N, we permute the graph labels, determine
+        -- the new seed positions, then calculate the random walk.
+        forM_ [1 .. optPermute] $ \_ -> do
+            me' <- permuteGraphLabels me
+            let group = fmap (\t -> getIndex (termEntity (B.pack t) "") me') $ convertCommaString optSimilarGroup
+            let seeds = VS.fromList group
+
+            let result = randomWalk (M.size me') (VS.length seeds) seeds graph optRestart 
+            let result' = sortResults $ filterResults opts $ proxToEnts me' result
+
+            writeWalkedRelations' argOutput (termEntity (B.pack optSimilarGroup) "") result'
+
+    | otherwise = return ()
+
 handleInputOptions :: Options -> Map Entity Int -> VS.Vector Double -> IO ()
 --
 handleInputOptions opts@Options{..} me graph
+    | optPermute > 1 = return ()
+
     | not $ null optSimilarTo = do
         forM_ (convertCommaString optSimilarTo) $ \term -> do
 
@@ -494,7 +519,7 @@ handleInputOptions opts@Options{..} me graph
         let group = fmap (\t -> getIndex (termEntity (B.pack t) "") me) $ convertCommaString optSimilarGroup
         let seeds = VS.fromList group
 
-        let result = randomWalk (M.size me) 1 seeds graph optRestart 
+        let result = randomWalk (M.size me) (VS.length seeds) seeds graph optRestart 
         let result' = sortResults $ filterResults opts $ proxToEnts me result
 
         writeOutputHeader argOutput
@@ -624,6 +649,7 @@ exec opts@Options{..} = do
 
     handleInputOptions opts entityIndex graphMatrix''
     handleSimilarTo opts entityIndex graphMatrix''
+    handleGroupPermutation opts entityIndex graphMatrix''
 
     scream verb "Done!"
 
