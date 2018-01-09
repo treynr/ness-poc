@@ -52,6 +52,7 @@ executable walker
                      , containers
                      , cmdargs
                      , deepseq
+                     , directory
                      , gitrev
                      , random
                      , random-shuffle

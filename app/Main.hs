@@ -26,6 +26,7 @@ import Data.Vector              (Vector)
 import Data.Vector.Storable     ((!))
 import Development.GitRev       (gitBranch, gitCommitCount, gitHash)
 import System.Console.CmdArgs
+import System.Directory         (doesFileExist)
 import System.Environment       (getArgs, withArgs)
 import System.Exit              (ExitCode(..), exitWith)
 import System.Random            (getStdRandom, randomR)
@@ -433,6 +434,7 @@ permuteGraphLabels me = do
 
     return $ M.fromList $ zip keys vals
 
+
 -- | Handles the --similar-to option which allows the user to specify one or
 -- | more entities (usually ontology terms) and calculate similarity between
 -- | these entities and all others
@@ -498,6 +500,23 @@ handleGroupPermutation opts@Options{..} me graph
 
     | otherwise = return ()
 
+-- | Checks to see if an existing output file already exists, if it does the
+-- | file is read in so analysis can continue from where it left off. Otherwise
+-- | writes out the new file.
+handleExistingOutput :: Options -> ([Entity], [Entity]) -> IO ([Entity], [Entity])
+--
+handleExistingOutput opts@Options{..} ins = do
+    found <- doesFileExist argOutput
+
+    if found then yes else no
+
+    where
+        no = writeOutputHeader argOutput >> return ins
+        yes = do
+            outEnts <- S.fromList <$> readOutputFile argOutput
+
+            return $ (filter (\e -> S.member e outEnts) $ fst ins, snd ins)
+
 handleInputOptions :: Options -> Map Entity Int -> VS.Vector Double -> IO ()
 --
 handleInputOptions opts@Options{..} me graph
@@ -536,9 +555,10 @@ handleInputOptions opts@Options{..} me graph
         else
             return ()
 
-        writeOutputHeader argOutput
+        --writeOutputHeader argOutput
+        inputs'' <- handleExistingOutput opts inputs'
 
-        forM_ (fst inputs') $ \ent -> do
+        forM_ (fst inputs'') $ \ent -> do
 
             let termIndex = getIndex ent me
             let result = randomWalk (M.size me) 1 (VS.singleton termIndex) graph optRestart

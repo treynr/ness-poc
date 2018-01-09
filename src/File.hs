@@ -188,3 +188,33 @@ readInputFile :: FilePath -> IO [Entity]
 --
 readInputFile fp = parseInputFile <$> B.readFile fp
 
+-- | (0)         (1)
+-- | ENTITY_TYPE IDENTIFIER
+--
+toOutputEntity :: [ByteString] -> Entity
+--
+toOutputEntity bs
+    | length bs /= 2 = Invalid
+    | (bs !! 0) == "gene" = EGene $! Gene $! toInt $ bs !! 1
+    | otherwise = ETerm $! (Term (B.intercalate ":" bs) "")
+    -- | (bs !! 0) == "term" = ETerm $! (Term (bs !! 1) "")
+    -- | otherwise = Invalid
+    where
+        toInt = fst . fromMaybe (0, "") . B.readInt
+
+-- | Parses the contents of an input file, converting terms or ode_gene_ids
+-- | into their respective entities and storing the relationship as a tuple.
+--
+parseOutputFile :: ByteString -> [Entity]
+--
+parseOutputFile bs = noInvalid $! map (toOutputEntity . B.split ':'. head . B.split '\t') $!
+                     removeComments $! removeEmpties $! B.lines bs
+    where
+        noInvalid = filter (/= Invalid)
+
+-- | Reads and parses a file containing a list of identifiers for use as Output
+-- | with the RWR.
+--
+readOutputFile :: FilePath -> IO [Entity]
+--
+readOutputFile fp = parseOutputFile <$> B.readFile fp
