@@ -515,7 +515,8 @@ handleExistingOutput opts@Options{..} ins = do
         yes = do
             outEnts <- S.fromList <$> readOutputFile argOutput
 
-            return $ (filter (\e -> S.member e outEnts) $ fst ins, snd ins)
+            -- Remove entities whose scores are already in the output file
+            return $ (filter (\e -> not $ S.member e outEnts) $ fst ins, snd ins)
 
 handleInputOptions :: Options -> Map Entity Int -> VS.Vector Double -> IO ()
 --
