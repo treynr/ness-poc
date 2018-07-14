@@ -17,7 +17,6 @@ import Data.Vector              (Vector)
 
 import qualified Data.ByteString.Char8  as B
 import qualified Data.Vector            as V
-import qualified Data.Vector.Storable   as VS
 
 import Types
 
@@ -27,6 +26,7 @@ serializeEntity (EGene g) = B.pack $ ("GENE:" ++) $ show $ ode g
 serializeEntity (EGeneSet g) = B.pack $ ("GS:" ++) $ show $ gsid g
 serializeEntity (ETerm t) = uid t
 serializeEntity (Invalid) = "Invalid Entity"
+serializeEntity (Sink) = "Sink"
 
 serializeWalkScore :: (Entity, Entity, Double) -> ByteString
 --

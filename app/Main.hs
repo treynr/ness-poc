@@ -16,11 +16,10 @@
 module Main where
 
 import Control.DeepSeq          (($!!), deepseq)
-import Control.Monad            (forM,forM_, join,when)
+import Control.Monad            (forM,forM_, when)
 import Data.List                (intercalate, sortBy, sortOn)
 import Data.List.Split          (splitOn)
 import Data.Map.Strict          (Map)
-import Data.Set                 (Set)
 import Data.Time                (getCurrentTime, toGregorian, utctDay)
 import Data.Vector              (Vector)
 import Data.Vector.Storable     ((!))
@@ -363,21 +362,6 @@ uncons :: Vector a -> (a, Vector a)
 --
 uncons v = (V.unsafeHead v, V.unsafeTail v)
 
-{-
-pairwiseWalk :: FilePath -> Map Entity Int -> VS.Vector Double -> Double ->
-                Vector Entity -> IO ()
---
-pairwiseWalk fp me vs a (uncons -> (vh, vt))
-    -- | V.null vh = return ()
-    | V.null vt = writeWalkedRelations fp me walk vh
-    | entIndex == -1 = pairwiseWalk fp me vs a vt
-    | otherwise = writeWalkedRelations fp me walk vh >> pairwiseWalk fp me vs a vt
-    where
-        graphSize = M.size me
-        entIndex = M.findWithDefault (-1) vh me
-        walk = randomWalk graphSize entIndex vs a (1.0 - a)
--}
-
 onlyTerms :: Vector Entity -> Vector Entity
 --
 onlyTerms = V.filter isTerm
@@ -505,7 +489,7 @@ handleGroupPermutation opts@Options{..} me graph
 -- | writes out the new file.
 handleExistingOutput :: Options -> ([Entity], [Entity]) -> IO ([Entity], [Entity])
 --
-handleExistingOutput opts@Options{..} ins = do
+handleExistingOutput Options{..} ins = do
     found <- doesFileExist argOutput
 
     if found then yes else no
@@ -572,7 +556,6 @@ handleInputOptions opts@Options{..} me graph
         separateMissingInputs m ls = (onlyValidEntities m ls, noValidEntities m ls)
         onlyValidEntities m ls = filter (\k -> M.member k m) ls
         noValidEntities m ls = filter (\k -> not $ M.member k m) ls
-        removeNonInputs s = filter (\(e, _) -> S.member e s) 
         entToBS (EGene g) = B.pack $ show $ ode g
         entToBS (EGeneSet g) = B.pack $ show $ gsid g
         entToBS (ETerm t) = uid t
@@ -588,8 +571,6 @@ handleNoise Options{..} vs
         return $ VS.unsafeUpd vs updates
     where
         fi = fromIntegral
-        vsl = VS.length vs
-        rIndex = getStdRandom (randomR (0, vsl - 1))
         -- Number of edges that exist in the matrix
         numEdges = round $ VS.sum vs
         -- Amount of false edges to add based on % noise and existing edges
@@ -612,8 +593,6 @@ handleMissing Options{..} vs
         return $ VS.unsafeUpd vs updates
     where
         fi = fromIntegral
-        vsl = VS.length vs
-        rIndex = getStdRandom (randomR (0, vsl - 1))
         -- Number of edges that exist in the matrix
         numEdges = round $ VS.sum vs
         -- Amount of edges to remove based on % missing and existing edges
@@ -635,6 +614,7 @@ exec opts@Options{..} = do
 
     scream verb "Reading files..."
 
+    -- Read in various input files
     fEdges <- handleEdges optEdges
     fGenesets <- handleGenesets optGenesets
     fAnnotations <- handleAnnotations optAnnotations
@@ -647,8 +627,8 @@ exec opts@Options{..} = do
 
     scream verb "Manipulating stored entities..."
 
-    --let entities = V.cons sinkEntity $!! flattenEntities fEdges fGenesets fAnnotations fTerms
-    --let entities = flattenEntities fEdges fGenesets fAnnotations fTerms
+    -- Merge bio entities into a single list and add a sink node for dangling
+    -- nodes
     let entities = V.cons Sink $!! flattenEntities fEdges fGenesets fAnnotations fTerms
     let graphSize = V.length entities
 
@@ -659,8 +639,8 @@ exec opts@Options{..} = do
     
     scream verb "Tagging entities..."
 
+    -- Assign zero-indexed IDs (for the adjacency matrix) to each unique entity
     let entityIndex = tagEntities entities
-    let indexEntity = M.foldlWithKey' (\ac k a -> M.insert a k ac) M.empty entityIndex
 
     scream verb "Building entity graph..."
 
@@ -672,6 +652,8 @@ exec opts@Options{..} = do
                       updateAdjacencyList' True entityIndex fGenesets $!!
                       updateAdjacencyList True entityIndex fAnnotations $!!
                       updateAdjacencyList False entityIndex fTerms []
+
+    scream verb $ show (VS.sum graphMatrix) ++ " edges"
 
     scream verb "Column normalziing the graph matrix..."
 

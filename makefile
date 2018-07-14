@@ -1,20 +1,31 @@
-CC = gcc
-CSRC = csrc
-## Use the C99 standard, compile with warnings, super optimize
-OPTS = --std=c99 -Wall -O3
-OUT = -o walker
-DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))/csrc
+cc = gcc
+csrc = csrc
+dir := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))/$(csrc)
+stackopts = --extra-lib-dirs $(dir) --extra-include-dirs $(dir)
+staticopts = --flag "*:static"
 
-build: cbuild hbuild
+error:
+	@echo "Choose a compilation target: dynamic, static, clean"
+	@exit 1
 
-cbuild:
-	$(MAKE) -C $(CSRC)
-	$(MAKE) install -C $(CSRC)
-	$(MAKE) objects -C $(CSRC)
+static: $(dir)/libwalk.a
+	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):$(dir); \
+	stack build $(staticopts) $(stackopts)
 
-hbuild: 
-	stack build --copy-bins --extra-include-dirs $(DIR) --extra-lib-dirs $(DIR)
+dynamic: $(dir)/libwalk.so
+	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):$(dir); \
+	stack build $(stackopts)
+
+install:
+	stack install
+
+$(dir)/libwalk.so:
+	$(MAKE) objects -C $(csrc)
+
+$(dir)/libwalk.a:
+	$(MAKE) objects -C $(csrc)
 
 clean:
 	stack clean
 	$(MAKE) clean -C $(CSRC)
+

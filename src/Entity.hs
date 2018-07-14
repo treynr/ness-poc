@@ -10,9 +10,7 @@
 
 module Entity where
 
-import Control.DeepSeq  (($!!), deepseq)
 import Data.ByteString.Char8 (ByteString)
-import Data.List        (foldl')
 import Data.Map.Strict  (Map)
 import Data.Vector      (Vector)
 

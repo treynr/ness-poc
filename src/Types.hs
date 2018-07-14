@@ -9,10 +9,20 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module Types where
+module Types (
+    Annotation,
+    Entity(..),
+    Gene(..),
+    GeneSet(..),
+    Term(..),
+    isEGene,
+    isEGeneSet,
+    isETerm,
+    isSink
+) where
 
+import Control.DeepSeq (NFData)
 import GHC.Generics (Generic)
-import Control.DeepSeq
 import Data.ByteString.Char8 (ByteString)
 
 data Gene = Gene {
@@ -43,15 +53,6 @@ data Entity = EGene Gene
             | Sink
             | Invalid
             deriving (Show, Eq, Ord, Generic, NFData)
-
-data EntityNode = GeneNode Gene 
-                | GeneSetNode GeneSet 
-                | TermNode Term 
-                deriving (Show, Eq, Ord, Generic, NFData)
-
-data EntityNode' = GeneNode' Int Gene 
-                 | GeneSetNode' Int GeneSet 
-                 | TermNode' Int Term
 
 -- GeneSet equivalence and order based soley on their gs_ids
 --

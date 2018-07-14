@@ -1,10 +1,8 @@
 
 -- | file: Graph.hs
 -- | desc: Adjacency matrix based graph representation. Includes functions for
--- |       creating 1) pure Haskell, 2) high performance LAPACK/BLAS, and 3) 
--- |       memory efficient 1D vector implementations.
--- |       Use (1) for small graphs, (2) for medium/large graphs, and (3) for
--- |       huge graphs where memory is concern.
+-- |       creating pure Haskell and memory efficient 1D vector
+-- |       implementations.
 -- | vers: 0.1.0
 -- | auth: TR
 
@@ -14,15 +12,10 @@ module Graph where
 
 import Data.List        (foldl')
 import Data.Map.Strict  (Map)
---import Data.Matrix      (Matrix, zero)
 import Data.Vector      (Vector)
 
-import qualified Data.Map.Strict            as M
---import qualified Data.Matrix                as MA
-import qualified Data.Set                   as S
-import qualified Data.Vector                as V
-import qualified Data.Vector.Storable       as VS
---import qualified Numeric.LinearAlgebra.Data as LD
+import qualified Data.Vector          as V
+import qualified Data.Vector.Storable as VS
 
 import Types
 import Utility
@@ -71,24 +64,10 @@ updateDanglingNodes si s vs = (VS.//) vs $ fmap (\i -> (s * si + i, 1.0)) $!
         colSlice c = VS.map (\r -> VS.slice (s * r + c) 1 vs VS.! 0) velems
         colSum c = VS.foldl' (+) 0.0 $ colSlice c 
 
--- | Transforms the adjacency list into a pure Haskell based matrix.
---
---makeMatrix :: Int -> [((Int, Int), Double)] -> Matrix Double
-----
---makeMatrix s = foldl' (\m (c, v) -> MA.setElem v c m) (MA.zero s s)
-
--- | Transforms the adjacency list into a high performance hmatrix for use with
--- | the linear algebra package.
---
---makeHPMatrix :: Int -> [((Int, Int), Double)] -> LD.Matrix Double
-----
---makeHPMatrix s = LD.assoc (s, s) 0.0
-
 -- | Transforms the adjacency list into a 1D vector representation.
 --
 make1DMatrix :: Int -> [((Int, Int), Double)] -> VS.Vector Double
 --
---make1DMatrix s as = VS.accum (+) (VS.replicate (s * s) 0.0) oneDim
 make1DMatrix s as = (VS.//) (VS.replicate (s * s) 0.0) oneDim
     where
         oneDim = fmap (\((r, c), d) -> (s * r + c, d)) as
