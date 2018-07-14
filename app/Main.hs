@@ -55,7 +55,7 @@ data Options = Options {
     -- Edge list file
     optEdges :: FilePath
     -- Gene set file
-  , optGenesets :: FilePath
+  , optGenesets :: [FilePath]
     -- Annotation file
   , optAnnotations :: [FilePath]
     -- File containing term-term relationships from an ontology
@@ -261,34 +261,27 @@ optionHandler opts@Options{..}  = do
         optRestart = if optRestart <= 0.0 then 0.15 else optRestart
     }
 
---handleEdges :: FilePath -> IO [(Entity, Entity)]
+-- | These functions check to see if any input options (edges, genesets,
+-- | annotations, or ontologies) are specified, then parses and loads the 
+-- | files.
+--
 handleEdges :: FilePath -> IO (Vector (Entity, Entity))
 --
---handleEdges "" = return []
 handleEdges "" = return V.empty
 handleEdges fp = readEdgeListFile fp
 
---handleGenesets :: FilePath -> IO [(Entity, [Entity])]
-handleGenesets :: FilePath -> IO (Vector (Entity, Vector Entity))
+handleGenesets :: [FilePath] -> IO (Vector (Entity, Vector Entity))
 --
---handleGenesets "" = return []
-handleGenesets "" = return V.empty
-handleGenesets fp = readGenesetFile fp
+handleGenesets [] = return V.empty
+handleGenesets fs = V.concat <$> (forM fs $ \f -> readGenesetFile f)
 
---handleAnnotations :: FilePath -> IO [(Entity, Entity)]
 handleAnnotations :: [FilePath] -> IO (Vector (Entity, Entity))
 --
---handleAnnotations "" = return []
 handleAnnotations [] = return V.empty
 handleAnnotations fps = V.concat <$> (forM fps $ \f -> readAnnotationFile f)
 
---handleOntology :: FilePath -> IO [(Entity, Entity)]
---handleOntology :: FilePath -> IO (Vector (Entity, Entity))
 handleOntology :: [FilePath] -> IO (Vector (Entity, Entity))
 --
---handleOntology "" = return []
---handleOntology "" = return V.empty
---handleOntology fp = readTermFile fp
 handleOntology [] = return V.empty
 handleOntology fs = V.concat <$> (forM fs $ \f -> readTermFile f)
 
