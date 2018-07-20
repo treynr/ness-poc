@@ -1,7 +1,7 @@
 cc = gcc
 csrc = csrc
 dir := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))/$(csrc)
-stackopts = --extra-lib-dirs $(dir) --extra-include-dirs $(dir)
+stackopts = --copy-bins --extra-lib-dirs $(dir) --extra-include-dirs $(dir)
 staticopts = --flag "*:static"
 
 error:

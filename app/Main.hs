@@ -60,6 +60,8 @@ data Options = Options {
   , optAnnotations :: [FilePath]
     -- File containing term-term relationships from an ontology
   , optOntology :: [FilePath]
+    -- File containing homology mappings
+  , optHomologs :: [FilePath]
     -- Calculate similarity for the given term
   , optSimilarTo :: String
     -- Calculate similarity for the given group of entities
@@ -82,6 +84,7 @@ data Options = Options {
   , optNoise :: Int
     -- Removes X% of associations/edges from the graph
   , optMissing :: Int
+  , optSerialize :: Bool
     -- Required argument: the output file data is saved to
   , argOutput :: FilePath
 
@@ -144,6 +147,9 @@ txtAnnotations = "Add the contents of the annotation file to the entity graph"
 txtOntology :: String
 txtOntology = "Add ontology relationships to the entity graph"
 
+txtHomologs :: String
+txtHomologs = "Add homology relationships to the entity graph"
+
 txtSimilarTo :: String
 txtSimilarTo = "Calculate similarity for the given ontology term"
 
@@ -177,6 +183,9 @@ txtNoise = "Randomly add X% of false edges to the graph to simulate noise"
 txtMissing :: String
 txtMissing = "Randomly remove X% of edges from the graph to simulate missing information"
 
+txtSerialize :: String
+txtSerialize = "Serialize the hetergeneous graph and exit"
+
 txtOutput :: String
 txtOutput = "File to save data to"
 
@@ -192,6 +201,8 @@ options = Options {
                        typFile &= help txtAnnotations
     , optOntology = def &= explicit &= C.name "o" &= C.name "ontology" &= 
                     typFile &= help txtOntology
+    , optHomologs = def &= explicit &= C.name "h" &= C.name "homologs" &= 
+                    typFile &= help txtHomologs
     , optSimilarTo = def &= explicit &= C.name "similar-to" &= typ "STRING" &= 
                      help txtSimilarTo
     , optSimilarGroup = def &= explicit &= C.name "similar-group" &= 
@@ -213,6 +224,8 @@ options = Options {
                    help txtNoise
     , optMissing = def &= explicit &= C.name "missing" &= typ "INT" &= 
                    help txtMissing
+    , optSerialize = def &= explicit &= C.name "serialize" &= typ "BOOL" &= 
+                   help txtSerialize
     , argOutput = def &= argPos 0 &= typFile
 }
 
@@ -226,7 +239,7 @@ getOptions = cmdArgs $ options
     &= versionArg [explicit, C.name "version", summary _INFO]
     &= summary _INFO
     &= help (_NAME ++ "\n" ++ _DESC)
-    &= helpArg [explicit, C.name "help", C.name "h"]
+    &= helpArg [explicit, C.name "help"]
     &= program _EXEC
 
 main :: IO ()
@@ -284,6 +297,11 @@ handleOntology :: [FilePath] -> IO (Vector (Entity, Entity))
 --
 handleOntology [] = return V.empty
 handleOntology fs = V.concat <$> (forM fs $ \f -> readTermFile f)
+
+handleHomologs :: [FilePath] -> IO (Vector (Entity, Entity))
+--
+handleHomologs [] = return V.empty
+handleHomologs fs = V.concat <$> (forM fs $ \f -> readHomologFile f)
 
 -- | Splits a comma delimited string into a list of strings.
 --
@@ -597,6 +615,27 @@ handleMissing Options{..} vs
 
             return $ fmap (\i -> (i, 0.0)) $ take numMissing edgesToUpdate
 
+handleSerialize :: Options -> Map Entity Int -> Vector (Entity, Entity) 
+                -> Vector (Entity, Vector Entity) -> IO ()
+--
+handleSerialize Options{..} em edges genesets
+    | not optSerialize = return ()
+    -- | otherwise = (writeGraph argOutput $ buildGraph em edges genesets) >>
+    --               exitWith (ExitFailure 0)
+    | otherwise = do
+        let g = buildGraph em edges genesets
+        let e = M.foldl' (\ac s -> (S.size s) + ac) 0 g
+
+        writeEntityMap ("entity-map-" ++ argOutput) em
+
+        putStrLn ("Edges: " ++ show e)
+
+        --writeGraph argOutput g
+        writeSparseGraph argOutput g
+
+        exitWith (ExitFailure 0)
+
+
 ---- Where all the execution magic happens. 
 --
 exec :: Options -> IO ()
@@ -609,11 +648,13 @@ exec opts@Options{..} = do
 
     -- Read in various input files
     fEdges <- handleEdges optEdges
+    fHomologs <- handleHomologs optHomologs
     fGenesets <- handleGenesets optGenesets
     fAnnotations <- handleAnnotations optAnnotations
     fTerms <- handleOntology optOntology
 
     scream verb $ "Loaded " ++ show (V.length fEdges) ++ " network edges"
+    scream verb $ "Loaded " ++ show (V.length fHomologs) ++ " homology mappings"
     scream verb $ "Loaded " ++ show (V.length fGenesets) ++ " gene sets"
     scream verb $ "Loaded " ++ show (V.length fAnnotations) ++ " ontology annotations"
     scream verb $ "Loaded " ++ show (V.length fTerms) ++ " ontology relations"
@@ -622,7 +663,7 @@ exec opts@Options{..} = do
 
     -- Merge bio entities into a single list and add a sink node for dangling
     -- nodes
-    let entities = V.cons Sink $!! flattenEntities fEdges fGenesets fAnnotations fTerms
+    let entities = V.cons Sink $!! flattenEntities fEdges fHomologs fGenesets fAnnotations fTerms
     let graphSize = V.length entities
 
     scream verb $ show (V.length $ onlyTerms entities) ++ " unique terms"
@@ -636,6 +677,8 @@ exec opts@Options{..} = do
     let entityIndex = tagEntities entities
 
     scream verb "Building entity graph..."
+
+    handleSerialize opts entityIndex fHomologs fGenesets
 
     --let graphMatrix = updateDanglingNodes (getIndex sinkEntity entityIndex) graphSize $!! 
     let graphMatrix = 

@@ -62,13 +62,15 @@ convertEntities gs gss ts = gs' ++ gss' ++ ts'
 -- | entities with duplicates removed. The resulting list can then be used in 
 -- | the creation of the Entity graph.
 --
-flattenEntities :: Vector (Entity, Entity) -> Vector (Entity, Vector Entity) ->
-                   Vector (Entity, Entity) -> Vector (Entity, Entity) -> 
-                   Vector Entity
+flattenEntities :: Vector (Entity, Entity) -> Vector (Entity, Entity) 
+                -> Vector (Entity, Vector Entity) -> Vector (Entity, Entity) 
+                -> Vector (Entity, Entity) -> Vector Entity
+                   
 --
-flattenEntities es gs as ts = removeDuplicates' $ es' <+> gs' <+> as' <+> ts'
+flattenEntities es hs gs as ts = removeDuplicates' $ es' <+> hs' <+> gs' <+> as' <+> ts'
     where
         es' = V.map fst es <+> V.map snd es
+        hs' = V.map fst hs <+> V.map snd hs
         gs' = V.map fst gs <+> V.concat (V.toList $ V.map snd gs)
         as' = V.map fst as <+> V.map snd as
         ts' = V.map fst ts <+> V.map snd ts

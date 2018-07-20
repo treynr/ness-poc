@@ -27,9 +27,8 @@ library
                        -Wmissing-import-lists
                        -fdiagnostics-color=always
                        -O3
-                       -fPIC
   if flag(static)
-    ghc-options: -static -optl-static -optl-pthread
+    ghc-options: -fPIC -static -optl-static -optl-pthread
 
   exposed-modules:     File
                      , Entity
@@ -57,9 +56,8 @@ executable walker
                        -with-rtsopts=-N
                        -threaded
                        -O3
-                       -fPIC
   if flag(static)
-    ghc-options: -static -optl-static -optl-pthread
+    ghc-options: -fPIC -static -optl-static -optl-pthread
 
   build-depends:       base
                      , bytestring

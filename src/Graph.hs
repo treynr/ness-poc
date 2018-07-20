@@ -12,8 +12,11 @@ module Graph where
 
 import Data.List        (foldl')
 import Data.Map.Strict  (Map)
+import Data.Set         (Set)
 import Data.Vector      (Vector)
 
+import qualified Data.Map.Strict      as M
+import qualified Data.Set             as S
 import qualified Data.Vector          as V
 import qualified Data.Vector.Storable as VS
 
@@ -77,4 +80,28 @@ get1DRow :: Int -> Int -> VS.Vector Double -> VS.Vector Double
 get1DRow i s vs
     | i < 0 || i > VS.length vs = VS.empty
     | otherwise = VS.slice (s * i) s vs
+
+-- | Builds the Entity graph in a format for serialization
+--
+buildGraph :: Map Entity Int -> Vector (Entity, Entity) 
+           -> Vector (Entity, Vector Entity) -> Map Int (Set Int)
+--
+buildGraph em edges genesets = M.unionWith (S.union) bothEdgeVectors bothGSVectors
+    where
+        bothEdgeVectors = M.unionWith S.union addEdgeVector addEdgeVector'
+        bothGSVectors = M.unionWith S.union addGSVector addGSVector'
+        addEdgeVector = V.foldl' (\am (e1, e2) -> updateMap e1 e2 am) M.empty edges
+        addEdgeVector' = V.foldl' (\am (e1, e2) -> updateMap e2 e1 am) M.empty edges
+        addGSVector = V.foldl' (\am (e, es) -> updateMap' e es am) M.empty genesets
+        addGSVector' = V.foldl' (\am (e, es) -> updateMap'' e es am) M.empty genesets
+        updateMap :: Entity -> Entity -> (Map Int (Set Int)) -> Map Int (Set Int)
+        updateMap e1 e2 m = M.insertWith (\old new -> S.union old new) (edex e1) (sing e2) m
+        updateMap' e es m = M.insertWith (\old new -> S.union old new) (edex e) (slist es) m
+        updateMap'' e es m = V.foldl' (\am gene -> M.insertWith S.union (edex gene) (sing e) am) m es --M.insertWith (\old new -> S.union old new) (slist es) (edex e) m
+        -- shouldn't be any -1 indices, doing this is bad
+        edex :: Entity -> Int
+        edex x = M.findWithDefault (-1) x em
+        sing :: Entity -> Set Int
+        sing = S.singleton . edex
+        slist = S.fromList . fmap edex . V.toList
 

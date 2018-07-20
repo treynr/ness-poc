@@ -13,9 +13,11 @@ module Types (
     Annotation,
     Entity(..),
     Gene(..),
+    Homolog(..),
     GeneSet(..),
     Term(..),
     isEGene,
+    isEHomolog,
     isEGeneSet,
     isETerm,
     isSink
@@ -28,6 +30,12 @@ import Data.ByteString.Char8 (ByteString)
 data Gene = Gene {
 
     ode :: !Int
+
+} deriving (Show, Eq, Ord, Generic, NFData)
+
+data Homolog = Homolog {
+
+    hom :: !Int
 
 } deriving (Show, Eq, Ord, Generic, NFData)
 
@@ -48,6 +56,7 @@ data Term = Term {
 type Annotation = (ByteString, [Gene])
 
 data Entity = EGene Gene
+            | EHomolog Homolog
             | EGeneSet GeneSet
             | ETerm Term
             | Sink
@@ -80,6 +89,13 @@ isEGene :: Entity -> Bool
 --
 isEGene (EGene _) = True
 isEGene _ = False
+
+-- | Returns true if the given Entity is a Homolog.
+--
+isEHomolog :: Entity -> Bool
+--
+isEHomolog (EHomolog _) = True
+isEHomolog _ = False
 
 -- | Returns true if the given Entity is a GeneSet.
 --

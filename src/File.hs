@@ -11,11 +11,17 @@ module File where
 
 import Control.Applicative      ((<$>))
 import Control.DeepSeq          (($!!))
+import Control.Monad            (forM_)
 import Data.Maybe               (fromMaybe)
 import Data.ByteString.Char8    (ByteString)
+import Data.Map.Strict          (Map)
+import Data.Set                 (Set)
 import Data.Vector              (Vector)
+import System.IO                (withFile, IOMode(WriteMode))
 
 import qualified Data.ByteString.Char8  as B
+import qualified Data.Map.Strict        as M
+import qualified Data.Set               as S
 import qualified Data.Vector            as V
 
 import Types
@@ -23,6 +29,7 @@ import Types
 serializeEntity :: Entity -> ByteString
 --
 serializeEntity (EGene g) = B.pack $ ("GENE:" ++) $ show $ ode g
+serializeEntity (EHomolog h) = B.pack $ ("HOM:" ++) $ show $ hom h
 serializeEntity (EGeneSet g) = B.pack $ ("GS:" ++) $ show $ gsid g
 serializeEntity (ETerm t) = uid t
 serializeEntity (Invalid) = "Invalid Entity"
@@ -73,9 +80,30 @@ parseEdgeListFile bs = V.fromList $!! map (tuplify . B.split '\t')
 -- | Reads and parses the edge list file.
 --
 readEdgeListFile :: FilePath -> IO (Vector (Entity, Entity))
---readEdgeListFile :: FilePath -> IO [(Int, Entity, Entity)]
 --
 readEdgeListFile fp = parseEdgeListFile <$> B.readFile fp
+
+-- | Parses the contents of homology mapping file into a list of gene-homolog
+-- | edges and converts everything into Entity types.
+-- | The row format for edge list files is:
+-- |    
+-- |    (0)  (1)
+-- |    GENE HOMOLOG
+--
+parseHomologFile :: ByteString -> Vector (Entity, Entity)
+--
+parseHomologFile bs = V.fromList $!! map (tuplify . B.split '\t') 
+                      (removeComments $! removeEmpties $! B.lines bs)
+    where
+        toInt = fst . fromMaybe (0, "") . B.readInt
+        tuplify (a:b:_) = (EGene $! Gene $! toInt a, EHomolog $! Homolog $! toInt b)
+        --tuplify (s:a:b:_) = (toInt s, EGene $ Gene $ toInt a, EGene $ Gene $ toInt b)
+
+-- | Reads and parses the edge list file.
+--
+readHomologFile :: FilePath -> IO (Vector (Entity, Entity))
+--
+readHomologFile fp = parseHomologFile <$> B.readFile fp
 
 -- | Converts the given ByteString into Entity GeneSet types.
 -- | The row format for geneset files is:
@@ -218,3 +246,43 @@ parseOutputFile bs = noInvalid $! map (toOutputEntity . B.split ':'. head . B.sp
 readOutputFile :: FilePath -> IO [Entity]
 --
 readOutputFile fp = parseOutputFile <$> B.readFile fp
+
+writeGraph :: FilePath -> Map Int (Set Int) -> IO ()
+--
+writeGraph fp m = withFile fp WriteMode $ \handle -> do
+    
+    B.hPutStrLn handle $ B.pack $ show $ M.size m
+
+    forM_ (M.toAscList m) $ \(k, s) -> do
+        B.hPutStrLn handle $ B.pack $ buildRowString s
+
+    where
+        buildRowString s = foldr (\x ac -> (if isIn x s then '1' else '0') : ',' : ac) "" [0..(size - 1)]
+        isIn x s = S.member x s
+        size = M.size m
+
+writeSparseGraph :: FilePath -> Map Int (Set Int) -> IO ()
+--
+writeSparseGraph fp m = withFile fp WriteMode $ \handle -> do
+    
+    B.hPutStrLn handle $ B.pack $ show $ M.size m
+
+    forM_ (M.toAscList m) $ \(k, s) -> do
+        B.hPutStrLn handle $ buildRowString s
+
+    where
+        buildRowString s = B.intercalate "," $ fmap (B.pack . show) $ S.toList s
+        size = M.size m
+
+writeEntityMap :: FilePath -> Map Entity Int -> IO ()
+--
+writeEntityMap fp em = withFile fp WriteMode $ \handle -> do
+
+    B.hPutStrLn handle $ B.pack $ show $ M.size em
+
+    forM_ (M.toAscList em) $ \(e, i) -> do
+        B.hPutStrLn handle $ buildString e i
+
+    where
+        buildString e i = B.intercalate "\t" [serializeEntity e, B.pack $ show i]
+    
