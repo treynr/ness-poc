@@ -44,6 +44,9 @@ struct Arguments {
     // Filepath to the output file
     std::string s_output = "";
 
+    // Node types to remove from the results
+    std::unordered_map<std::string, bool> s_filters;
+
     // Restart parameter
     double s_restart = 0.15;
 
@@ -77,6 +80,8 @@ void printHelp( char **argv ) {
     std::cout << std::endl;
     std::cout << "    -r --restart: restart parameter";
     std::cout << std::endl;
+    std::cout << "    -f --filter: filter node types using the given prefix";
+    std::cout << std::endl;
     std::cout << "    --no-sets: remove gene set nodes from the output";
     std::cout << std::endl;
     std::cout << "    --no-homology: remove homology nodes from the output";
@@ -106,6 +111,11 @@ Arguments parseArguments( int argc, char **argv ) {
 
             // Move to the next argument to get the column #
             args.s_restart = (double) strtol(argv[++i], NULL, 10);
+
+        } else if (arg == "-f" || arg == "--filter") {
+
+            // Move to the next argument to get the column #
+            args.s_filters.insert( std::make_pair(argv[++i], true) );
 
         } else if (arg == "--no-sets") {
 
@@ -588,6 +598,31 @@ int main( int argc, char **argv ) {
             [](std::pair<std::string, double> a) -> bool { return a.second > 0; }
         );
 
+        if (!args.s_filters.empty()) {
+
+            filtResults.erase(
+                std::remove_if(
+                    filtResults.begin(),
+                    filtResults.end(),
+                    [&args](std::pair<std::string, double> a) -> bool { 
+
+                        auto splitDex = a.first.find_first_of( ":" );
+
+                        if (splitDex == std::string::npos)
+                            return false;
+
+                        auto node = a.first.substr( 0, splitDex );
+
+                        if (args.s_filters.find(node) == args.s_filters.end())
+                            return false;
+
+                        return true;
+                }),
+                filtResults.end()
+            );
+        }
+
+        /*
         if (args.s_nsets) {
 
             filtResults.erase(
@@ -611,6 +646,7 @@ int main( int argc, char **argv ) {
                 filtResults.end()
             );
         }
+        */
 
         std::sort(
             filtResults.begin(),
