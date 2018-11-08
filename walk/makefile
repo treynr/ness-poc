@@ -4,7 +4,7 @@ OPTS = --std=c++11 -Wall -O3
 OUT = -o nessw
 
 install:
-	$(CC) $(OPTS) -fPIC $(OUT) walk.c main.c
+	$(CC) $(OPTS) -fPIC $(OUT) walk.c main.cpp
 
 clean:
 	rm -f *.o *.so nessw

@@ -63,10 +63,22 @@ struct Arguments {
     bool s_verbosity = false;
 };
 
-void log( bool verbosity, const char *msg ) {
+template<typename _t>
+void log( bool verbosity, _t t ) {
 
     if (verbosity)
-        std::cout << msg << std::endl;
+        std::cout << t << std::endl;
+}
+
+template<typename _t, typename... _a> 
+void log( bool verbosity, _t t, _a... args ) {
+
+    if (verbosity) {
+
+        std::cout << t;
+
+        log( verbosity, args... );
+    }
 }
 
 /**
@@ -114,6 +126,7 @@ Arguments parseArguments( int argc, char **argv ) {
 
         } else if (arg == "-f" || arg == "--filter") {
 
+            //std::cout << "--filter: " << argv[i+1] << std::endl;
             // Move to the next argument to get the column #
             args.s_filters.insert( std::make_pair(argv[++i], true) );
 
@@ -127,15 +140,18 @@ Arguments parseArguments( int argc, char **argv ) {
 
         } else if (arg == "-v" || arg == "--verbose") {
 
+            std::cout << "--verbose: "<< std::endl;
             args.s_verbosity = true;
 
         } else if (arg == "-a" || arg == "--alist") {
 
+            std::cout << "--alist: "<< std::endl;
             args.s_alist = true;
 
         // Otherwise we just assume it's an argument
         } else {
 
+            std::cout << "arg: "<< argv[i] << std::endl;
             if (args.s_graph.empty())
                 args.s_graph = argv[i];
 
@@ -350,6 +366,10 @@ EntityMap processEntityFile( std::string fp ) {
         if (line.empty())
             continue;
 
+        // Convert all characters in the line to upprecase where possible to
+        // avoid possible issues with string comparisons
+        std::transform(line.begin(), line.end(), line.begin(), ::toupper);
+
         // vector of strings representing each column in this row
         auto columns = fastSplit( line, '\t' );
 
@@ -390,6 +410,10 @@ std::vector<std::string> processSeedFile( std::string fp ) {
         if (line.empty())
             continue;
 
+        // Convert all characters in the line to upprecase where possible to
+        // avoid possible issues with string comparisons
+        std::transform(line.begin(), line.end(), line.begin(), ::toupper);
+
         seeds.push_back( line );
     }
 
@@ -399,7 +423,7 @@ std::vector<std::string> processSeedFile( std::string fp ) {
 
 int main( int argc, char **argv ) {
 
-
+    std::cout << "argc: " << argc << std::endl;
     if (argc < 5) {
 
         printHelp( argv );
@@ -505,8 +529,7 @@ int main( int argc, char **argv ) {
         entDexs.push_back( eit->second );
     }
 
-    std::cout << "Processed " << seeds.size() << " seeds" << std::endl;
-    std::cout << "Processed " << entDexs.size() << " seeds" << std::endl;
+    log( args.s_verbosity, "[+] Processed ", seeds.size(), " seeds" );
 
     if (entDexs.empty()) {
 
@@ -550,12 +573,12 @@ int main( int argc, char **argv ) {
 
         double *vector = NULL;
 
-        std::cout << "Seeds left: " << (entDexs.size() - i) << std::endl;
-        std::cout << "The seed is: " << seed[0] << std::endl;
+        //std::cout << "Seeds left: " << (entDexs.size() - i) << std::endl;
+        //std::cout << "The seed is: " << seed[0] << std::endl;
         
         if (args.s_alist) {
 
-            std::cout << "Walking the adjacency list..." << std::endl;
+            //std::cout << "Walking the adjacency list..." << std::endl;
             vector = randomWalkAList( 
                 size, 1, seed, alist, args.s_restart, 1.0 - args.s_restart
             );
