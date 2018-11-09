@@ -159,6 +159,7 @@ double **normalizeColumnsInPlace( int size, double **m ) {
     return m;
 }
 
+/*
 AdjacencyList normalizeColumnsAList( int size, AdjacencyList alist ) {
 
 	double sum = 0.0;
@@ -187,34 +188,71 @@ AdjacencyList normalizeColumnsAList( int size, AdjacencyList alist ) {
                 cit->second = 0.0;
             else
                 cit->second = cit->second / sum;
-        //for (auto vit = alist.begin(); vit != alist.end(); vit++) {
-            //for (auto cit = alist[r].begin(); cit != alist[r].end(); cit++) {
-            ////for (auto cit = vit->begin(); cit != vit->end(); cit++) {
-            //    //if (sum == 0.0)
-            //    //    cit->second = 0.0;
-            //    //else
-            //    //    cit->second = cit->second / sum;
-            //    if (sum == 0.0)
-            //        alist[r][cit->first] = 0.0;
-            //    else
-            //        alist[r][cit->first] = cit->second / sum;
-            //    //std::cout << cit->second << std::endl;
-            //}
-            //for (auto cit = alist[r].begin(); cit != alist[r].end(); cit++) {
-            //    std::cout << cit->first << ", " << cit->second << std::endl;
-            //}
 		}
     }
-    //for (auto i = 0; i < size; i++) {
-    //    std::cout << i << ": ";
-    //    for (auto mit = alist[i].begin(); mit != alist[i].end(); mit++) {
-    //        std::cout << "(" << mit->first << ", " << mit->second;
-    //        std::cout << ") ";
-    //    }
-    //    std::cout << std::endl;
-    //}
 
     return alist;
+}
+*/
+
+AdjacencyList normalizeColumnsAListNew( int size, AdjacencyList alist ) {
+
+	double sum = 0.0;
+
+    // Generate an inverse adjacency list, mapping colunms -> rows
+    //AdjacencyList clist;
+    std::vector<std::vector<std::pair<int, double>>> clist;
+
+    clist.resize( alist.size() );
+
+    // Loop through each row, storing the column -> row associations in the new
+    // adjacency list
+    for (size_t r = 0; r < alist.size(); r++) {
+
+        auto cmap = alist[r];
+
+        //for (auto c = cmap.begin(); c != cmap.end(); c++) {
+        //    clist[c->first].push_back( std::make_pair(r, c->second) );
+        //}
+        for (size_t c = 0; c < cmap.size(); c++) {
+			auto cell = alist[r][c];
+
+            clist[cell.first].push_back( std::make_pair(r, cell.second) );
+        }
+    }
+
+    // Convert back to the normal adjacency list representation
+    AdjacencyList newlist;
+
+    newlist.resize( alist.size() );
+
+    // Begin normalizing each column
+    for (size_t c = 0; c < clist.size(); c++) {
+
+        sum = 0.0;
+
+        // Sum the rows
+        for (size_t r = 0; r < clist[c].size(); r++) {
+
+            sum += clist[c][r].second;
+        }
+
+        // Normalize and convert back to the original adjacency list
+        // representation
+        for (size_t r = 0; r < clist[c].size(); r++) {
+
+            //newlist[clist[c][r].first].insert( 
+            //    std::make_pair(c, clist[c][r].second / sum)
+            //);
+            newlist[clist[c][r].first].push_back( 
+                std::make_pair(c, clist[c][r].second / sum)
+            );
+            //clist[c][ri].second = clist[c][r].second / sum;
+        }
+
+    }
+
+    return newlist;
 }
 
 double *initialProxVector2( int size, int seedSize, int *seed ) {
@@ -229,7 +267,7 @@ double *initialProxVector2( int size, int seedSize, int *seed ) {
 		if (seed[i] < 0 || seed[i] >= size)
 			seed[i] = 0;
 
-		v[seed[i]] = 1.0 / (float)seedSize;
+		v[seed[i]] = 1.0 / static_cast<float>(seedSize);
 	}
 
     return v;
@@ -282,9 +320,17 @@ double *multiplyMatrixByVectorAList( int msize, int vsize, AdjacencyList alist, 
         vnew[i] = 0.0;
 
     for (int i = 0; i < msize; i++) {
-        for (auto jit = alist[i].begin(); jit != alist[i].end(); jit++) {
+        //for (auto jit = alist[i].begin(); jit != alist[i].end(); jit++) {
 
-            vnew[i] += jit->second * v[jit->first];
+        //    vnew[i] += jit->second * v[jit->first];
+        //    //std::cout << jit->first << ", " << jit->second << std::endl;
+        //}
+        for (auto j = 0; j < alist[i].size(); j++) {
+
+			auto cell = alist[i][j];
+
+            //vnew[i] += jit->second * v[jit->first];
+            vnew[i] += cell.second * v[cell.first];
             //std::cout << jit->first << ", " << jit->second << std::endl;
         }
     }

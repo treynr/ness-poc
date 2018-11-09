@@ -140,18 +140,18 @@ Arguments parseArguments( int argc, char **argv ) {
 
         } else if (arg == "-v" || arg == "--verbose") {
 
-            std::cout << "--verbose: "<< std::endl;
+            //std::cout << "--verbose: "<< std::endl;
             args.s_verbosity = true;
 
         } else if (arg == "-a" || arg == "--alist") {
 
-            std::cout << "--alist: "<< std::endl;
+            //std::cout << "--alist: "<< std::endl;
             args.s_alist = true;
 
         // Otherwise we just assume it's an argument
         } else {
 
-            std::cout << "arg: "<< argv[i] << std::endl;
+            //std::cout << "arg: "<< argv[i] << std::endl;
             if (args.s_graph.empty())
                 args.s_graph = argv[i];
 
@@ -215,7 +215,7 @@ std::vector<std::string> fastSplit( std::string s, char delim ) {
     std::vector<std::string> vs;
     std::string token;
 
-    for (auto i = 0; i < s.length(); i++) {
+    for (size_t i = 0; i < s.length(); i++) {
 
         if (s[i] == delim) {
 
@@ -288,6 +288,7 @@ double **processGraphFile( std::string fp, int &matrixSize ) {
     return matrix;
 }
 
+/*
 AdjacencyList processGraphFileAList( std::string fp, int &matrixSize ) {
 
     std::ifstream   file( fp );
@@ -336,6 +337,66 @@ AdjacencyList processGraphFileAList( std::string fp, int &matrixSize ) {
             int colDex = static_cast<int>( strtol(columns[i].c_str(), NULL, 10) );
 
             alist[lineCount].insert( std::make_pair(colDex, 1.0) );
+            //alist[lineCount].insert( std::pair<int, double>(colDex, 1.0) );
+        }
+
+        lineCount++;
+    }
+
+    matrixSize = size;
+
+    return alist;
+}
+*/
+
+AdjacencyList processGraphFileAListNew( std::string fp, int &matrixSize ) {
+
+    std::ifstream   file( fp );
+    std::string     line;
+
+    if (!file)
+        return AdjacencyList();
+
+    // The first line contains the size of the NxN matrix
+    std::getline(file, line);
+
+    if (line.empty())
+        return AdjacencyList();
+
+    AdjacencyList alist;
+    int lineCount = 0;
+    int size = static_cast<int>( strtol(line.c_str(), NULL, 10) );
+
+    alist.resize( size );
+
+    while (std::getline(file, line)) {
+
+        // Node doesn't have neighbors
+        if (line.empty()) {
+
+            alist[lineCount] = std::vector<std::pair<int, double>>();
+
+            continue;
+        }
+
+        // vector of strings representing each column in this row
+        auto columns = fastSplit( line, ',' );
+
+        if (columns.size() == 0) {
+
+            alist[lineCount] = std::vector<std::pair<int, double>>();
+
+            continue;
+        }
+
+        // In this case each column is a node index, so there is an edge
+        // between the current node given by lineCount and each node index in
+        // the columns variable
+        for (auto i = 0; i < columns.size(); i++) {
+
+            int colDex = static_cast<int>( strtol(columns[i].c_str(), NULL, 10) );
+
+            alist[lineCount].push_back( std::make_pair(colDex, 1.0) );
             //alist[lineCount].insert( std::pair<int, double>(colDex, 1.0) );
         }
 
@@ -423,7 +484,32 @@ std::vector<std::string> processSeedFile( std::string fp ) {
 
 int main( int argc, char **argv ) {
 
-    std::cout << "argc: " << argc << std::endl;
+    /*
+    int shitsize = 0;
+    auto shit = processGraphFileAList("sample-graph.al", shitsize);
+    auto shit1 = normalizeColumnsAList(shitsize, shit);
+    auto shit2 = normalizeColumnsAListNew(shitsize, shit);
+
+    for (auto i = 0; i < shit1.size(); i++) {
+        std::cout << "[" << i << "] ";
+        for (auto c = shit1[i].begin(); c != shit1[i].end(); c++) {
+
+            std::cout << c->first << ": " << c->second << " ";
+        }
+        std::cout << std::endl;
+    }
+    std::cout << std::endl;
+    for (auto i = 0; i < shit2.size(); i++) {
+        std::cout << "[" << i << "] ";
+        for (auto c = shit2[i].begin(); c != shit2[i].end(); c++) {
+
+            std::cout << c->first << ": " << c->second << " ";
+        }
+        std::cout << std::endl;
+    }
+    return 0;
+    */
+    //std::cout << "argc: " << argc << std::endl;
     if (argc < 5) {
 
         printHelp( argv );
@@ -441,7 +527,7 @@ int main( int argc, char **argv ) {
 
     if (args.s_alist) {
 
-        alist = processGraphFileAList( args.s_graph, size );
+        alist = processGraphFileAListNew( args.s_graph, size );
 
         if (size == 0 || alist.empty()) {
 
@@ -473,8 +559,8 @@ int main( int argc, char **argv ) {
 
     log( args.s_verbosity, "[+] Checking for missing nodes..." );
 
-    std::cout << size << std::endl;
-    std::cout << alist.size() << std::endl;
+    //std::cout << size << std::endl;
+    //std::cout << alist.size() << std::endl;
     // Add any missing entities to the graph
     if (args.s_alist) {
 
@@ -493,7 +579,7 @@ int main( int argc, char **argv ) {
 
         size = alist.size();
     }
-    std::cout << alist.size() << std::endl;
+    //std::cout << alist.size() << std::endl;
 
     if (emap.empty()) {
 
@@ -543,10 +629,11 @@ int main( int argc, char **argv ) {
     log( args.s_verbosity, "[+] Column normalizing the matrix..." );
 
     if (args.s_alist)
-        alist = normalizeColumnsAList( size, alist );
+        alist = normalizeColumnsAListNew( size, alist );
     else
         m = normalizeColumnsInPlace( size, m );
 
+    //return 0;
     /*
     for (auto i = 0; i < alist.size(); i++) {
         std::cout << i << ": ";
@@ -614,11 +701,16 @@ int main( int argc, char **argv ) {
         std::vector<std::pair<std::string, double>> filtResults;
 
         // Remove values that are zero
-        std::copy_if(
+        //std::copy_if(
+        //    results.begin(),
+        //    results.end(),
+        //    std::back_inserter(filtResults),
+        //    [](std::pair<std::string, double> a) -> bool { return a.second > 0; }
+        //);
+        std::copy(
             results.begin(),
             results.end(),
-            std::back_inserter(filtResults),
-            [](std::pair<std::string, double> a) -> bool { return a.second > 0; }
+            std::back_inserter(filtResults)
         );
 
         if (!args.s_filters.empty()) {

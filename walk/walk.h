@@ -13,7 +13,8 @@
 #include <unordered_map>
 #include <vector>
 
-typedef std::vector<std::unordered_map<int, double>> AdjacencyList;
+//typedef std::vector<std::unordered_map<int, double>> AdjacencyList;
+typedef std::vector<std::vector<std::pair<int, double>>> AdjacencyList;
 
 void printMatrix( int n, double **m );
 
@@ -26,6 +27,7 @@ double **normalizeColumns( int size, double **m );
 double **normalizeColumnsInPlace( int size, double **m );
 
 AdjacencyList normalizeColumnsAList( int size, AdjacencyList alist );
+AdjacencyList normalizeColumnsAListNew( int size, AdjacencyList alist );
 
 double *initialProxVector( int size, int seed );
 
