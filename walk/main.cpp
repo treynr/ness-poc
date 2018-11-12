@@ -122,7 +122,8 @@ Arguments parseArguments( int argc, char **argv ) {
         if (arg == "-r" || arg == "--restart") {
 
             // Move to the next argument to get the column #
-            args.s_restart = (double) strtol(argv[++i], NULL, 10);
+            //args.s_restart = (double) strtol(argv[++i], NULL, 10);
+            args.s_restart = atof(argv[++i]);
 
         } else if (arg == "-f" || arg == "--filter") {
 
@@ -665,6 +666,8 @@ int main( int argc, char **argv ) {
         
         if (args.s_alist) {
 
+            std::cout << args.s_restart << std::endl;
+            std::cout << 1.0 - args.s_restart << std::endl;
             //std::cout << "Walking the adjacency list..." << std::endl;
             vector = randomWalkAList( 
                 size, 1, seed, alist, args.s_restart, 1.0 - args.s_restart
