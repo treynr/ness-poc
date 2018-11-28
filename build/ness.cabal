@@ -43,6 +43,7 @@ library
                      , deepseq
                      , filepath
                      , gitrev
+                     , random
                      , random-shuffle
                      , time
                      , vector

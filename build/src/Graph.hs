@@ -7,14 +7,16 @@
 -- | auth: TR
 
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TupleSections #-}
 
 module Graph where
 
-import Data.List             (foldl')
+import Data.List             (foldl', sortBy)
 import Data.Map.Strict       (Map)
 import Data.Set              (Set)
 import Data.Tuple            (swap)
 import Data.Vector           (Vector)
+import System.Random         (randomRIO)
 import System.Random.Shuffle (shuffleM)
 
 import qualified Data.Map.Strict      as M
@@ -195,10 +197,11 @@ permuteGraphLabels me = do
 
 -- | Simulates noise by adding a percentage of false edges to the graph.
 --
-simulateNoise :: Int -> Map Int (Set Int) -> IO (Map Int (Set Int))
+simulateNoise :: Float -> Map Int (Set Int) -> IO (Map Int (Set Int))
 --
 simulateNoise noise g
     | noise == 0 = return g
+    | noise < 0 = return g
     | otherwise = do
         edges <- randomEdges
 
@@ -210,11 +213,12 @@ simulateNoise noise g
         -- Returns the number of edges present in the graph
         --
         numEdges = M.foldl' (\ac s -> ac + S.size s) 0 g
+        numNodes = M.size g
         --
         -- Returns the number of edges that should be removed from the graph,
         -- based on the graph size and % noise parameter
         --
-        numNoise = floor $ (fi numEdges) * ((fi noise) / 100.00)
+        numNoise = floor $ (fi numEdges) * (noise / 100.00)
         --
         -- Concatenates the list of nodes with itself until it is larger than
         -- the n parameter which represents the number of edges to add.
@@ -227,21 +231,32 @@ simulateNoise noise g
         --
         -- Generates a list of random nodes which we create edges to.
         --
-        randomNodes1 = take numNoise <$> (shuffleM $ padNodeList numNoise $ M.keys g)
-        randomNodes2 = take numNoise <$> (shuffleM $ padNodeList numNoise $ M.keys g)
-        randomEdges = zip <$> randomNodes1 <*> randomNodes2
+        --randomNodes1 = take numNoise <$> (shuffleM $ padNodeList numNoise $ M.keys g)
+        --randomNodes2 = take numNoise <$> (shuffleM $ padNodeList numNoise $ M.keys g)
+        --randomEdges = zip <$> randomNodes1 <*> randomNodes2
+        randomEdges = zip <$> randomNodes <*> randomNodes
+        randomNodes = randomNodes' numNodes numNodes
+        randomNodes' :: Int -> Int -> IO [Int]
+        randomNodes' 0 _ = return []
+        randomNodes' n s = do
+            rn <- randomRIO (0, s - 1)
+            rs <- randomNodes' (n - 1) s
+
+            return (rn : rs)
 
 -- | Simulates sparsity by removing a percentage of edges from the graph.
 --
-simulateSparsity :: Int -> Map Int (Set Int) -> IO (Map Int (Set Int))
+simulateSparsity :: Float -> Map Int (Set Int) -> IO (Map Int (Set Int))
 --
 simulateSparsity miss g
     | miss == 0 = return g
-    | miss >= 100 = simulateSparsity 99 g
+    | miss < 0 = return g
+    | miss >= 100 = return g
     | otherwise = do
         nodes <- randomNodes
 
-        return $ foldl' (\g' n -> M.adjust removeSetElement n g') g nodes
+        --return $ foldl' (\g' n -> M.adjust removeSetElement n g') g nodes
+        return $ foldl' (\g' (n, ei) -> M.adjust (removeSetElement ei) n g') g nodes
     where
         fi = fromIntegral
         --
@@ -252,7 +267,7 @@ simulateSparsity miss g
         -- Returns the number of edges that should be removed from the graph,
         -- based on the graph size and % missing parameter
         --
-        numMiss = floor $ (fi numEdges) * ((fi miss) / 100.00)
+        numMiss = floor $ (fi numEdges) * (miss / 100.0)
         --
         -- Concatenates the list of nodes with itself until it is larger than
         -- the m parameter which represents the number of edges to remove.
@@ -263,8 +278,85 @@ simulateSparsity miss g
         --
         padNodeList m ns = if length ns >= m then ns else padNodeList m (ns ++ ns)
         --
+        -- Enumerates all edges in the graph as a list of edge, index pairs 
+        -- [(e, i)]. The index i corresponds to the location of a node in the
+        -- list nodes with an edge from e.
+        --
+        enumerateEdges g' = concat $ 
+                            fmap (\(k, v) -> zip (replicate v k) [0 .. v - 1]) $ 
+                            fmap (\(k, vs) -> (k, S.size vs)) $ 
+                            M.toList g'
+        --
         -- Generates a list of random nodes which we remove a single edge from.
         --
-        randomNodes = take numMiss <$> (shuffleM $ padNodeList numMiss $ M.keys g)
-        removeSetElement = S.fromList . drop 1 . S.toList
+        --randomNodes = take numMiss <$> (shuffleM $ padNodeList numMiss $ M.keys g)
+        randomNodes = (take numMiss . sortOnIndex) <$> (shuffleM $ enumerateEdges g)
+        sortOnIndex = sortBy (\(_, a) (_, b) -> compare b a)
+        removeIndex i xs = let (a, b) = splitAt i xs in a ++ drop 1 b
+        --removeSetElement = S.fromList . drop 1 . S.toList
+        removeSetElement i = S.fromList . removeIndex i . S.toList
+
+-- | Simulates sparsity by removing a percentage of edges from the graph.
+--
+simulateSparsity' :: Float -> Map Int (Set Int) -> IO (Map Int (Set Int))
+--
+simulateSparsity' miss g
+    | miss == 0 = return g
+    | miss < 0 = return g
+    -- | miss >= 100 = return g
+    | otherwise = do
+        --nodes <- randomNodes
+        nodes <- randomEdges
+
+        --return $ foldl' (\g' n -> M.adjust removeSetElement n g') g nodes
+        --return $ foldl' (\g' (n, ei) -> M.adjust (removeSetElement ei) n g') g nodes
+        return $ foldl' (\g' (n, ei) -> M.adjust (S.delete n) ei $ M.adjust (S.delete ei) n g') g nodes
+    where
+        fi = fromIntegral
+        --
+        -- Returns the number of edges present in the graph
+        --
+        numEdges = M.foldl' (\ac s -> ac + S.size s) 0 g
+        --
+        -- Returns the number of edges that should be removed from the graph,
+        -- based on the graph size and % missing parameter
+        --
+        --numMiss = floor $ (fi numEdges) * (miss / 100.0)
+        -- Divided by two because each undirected edge is essential two edges
+        -- to -> from and from -> to.
+        --numMiss = floor (miss / 2)
+        numMiss = floor (((fi numEdges) * (miss / 100.0)) / 2)
+        --
+        -- Concatenates the list of nodes with itself until it is larger than
+        -- the m parameter which represents the number of edges to remove.
+        -- Since we randomly select a node in the graph, then remove a random
+        -- edge from it, there could be a case where the # of edges to remove >
+        -- than the # of nodes in the graph. This function could be optimized
+        -- but idc.
+        --
+        padNodeList m ns = if length ns >= m then ns else padNodeList m (ns ++ ns)
+        --
+        -- Enumerates all edges in the graph as a list of edge, index pairs 
+        -- [(e, i)]. The index i corresponds to the location of a node in the
+        -- list nodes with an edge from e.
+        --
+        --enumerateEdges g' = concat $ 
+        --                    fmap (\(k, v) -> zip (replicate v k) [0 .. v - 1]) $ 
+        --                    fmap (\(k, vs) -> (k, S.size vs)) $ 
+        --                    M.toList g'
+        enumerateEdges' g' = concat $ 
+                            --fmap (\(k, v) -> zip (replicate v k) [0 .. v - 1]) $ 
+                            --fmap (\(k, vs) -> (k, S.size vs)) $ 
+                            foldl' (\ac (k, vs) -> fmap (k,) (S.toList vs) : ac) [] $
+                            M.toList g'
+        --
+        -- Generates a list of random nodes which we remove a single edge from.
+        --
+        --randomNodes = take numMiss <$> (shuffleM $ padNodeList numMiss $ M.keys g)
+        --randomNodes = (take numMiss . sortOnIndex) <$> (shuffleM $ enumerateEdges g)
+        randomEdges = (take numMiss) <$> (shuffleM $ enumerateEdges' g)
+        --sortOnIndex = sortBy (\(_, a) (_, b) -> compare b a)
+        removeIndex i xs = let (a, b) = splitAt i xs in a ++ drop 1 b
+        --removeSetElement = S.fromList . drop 1 . S.toList
+        removeSetElement i = S.fromList . removeIndex i . S.toAscList
 

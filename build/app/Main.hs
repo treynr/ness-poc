@@ -130,30 +130,61 @@ exec opts@Options{..} = do
 
     scream verb "Building entity graph..."
 
+    preGraph <- simulateSparsity' optMissing =<< simulateNoise optNoise (
+                    ensureGraphCompleteness entityIndex $
+                    buildUndirectedGraph' entityIndex fGenesets $
+                    if optDirected
+                    then 
+                        buildDirectedGraph entityIndex fHomologs  $
+                        buildDirectedGraph entityIndex fTerms $
+                        buildDirectedGraph entityIndex fAnnotations $
+                        buildDirectedGraph entityIndex fEdges M.empty
+                    else
+                        buildUndirectedGraph entityIndex fHomologs $
+                        buildUndirectedGraph entityIndex fTerms $
+                        buildUndirectedGraph entityIndex fAnnotations $
+                        buildUndirectedGraph entityIndex fEdges M.empty
+                        )
+
+    
+    {--
+    let preGraph = ensureGraphCompleteness entityIndex $
+                    buildUndirectedGraph' entityIndex fGenesets $
+                    if optDirected
+                    then 
+                        buildDirectedGraph entityIndex fHomologs  $
+                        buildDirectedGraph entityIndex fTerms $
+                        buildDirectedGraph entityIndex fAnnotations $
+                        buildDirectedGraph entityIndex fEdges M.empty
+                    else
+                        buildUndirectedGraph entityIndex fHomologs $
+                        buildUndirectedGraph entityIndex fTerms $
+                        buildUndirectedGraph entityIndex fAnnotations $
+                        buildUndirectedGraph entityIndex fEdges M.empty
+
+    --}
+    let numEdges = M.foldl' (\ac s -> ac + S.size s) 0 preGraph
+    let toRemove = (fromIntegral numEdges) * (optMissing / 100.0)
+
+    scream verb $ "toRemove: " ++ show toRemove
+    scream verb $ show (M.foldl' (\ac s -> (S.size s) + ac) 0 preGraph) ++ " edges"
+
+    --graph <- simulateSparsity' toRemove =<< simulateNoise optNoise (updateDanglingNodes sinkIndex preGraph)
     -- Build the (un)directed graph depending on user input
     -- Gene sets however are always undirected, I don't think it makes sense to
     -- use directed edges for them.
-    let graph = updateDanglingNodes sinkIndex $ 
-                ensureGraphCompleteness entityIndex $ 
-                if optDirected
-                then buildDirectedGraph entityIndex fEdges $
-                     buildDirectedGraph entityIndex fHomologs $
-                     buildDirectedGraph entityIndex fAnnotations $
-                     buildDirectedGraph entityIndex fTerms $
-                     buildUndirectedGraph' entityIndex fGenesets M.empty
-                else buildUndirectedGraph entityIndex fEdges $
-                     buildUndirectedGraph entityIndex fHomologs $
-                     buildUndirectedGraph entityIndex fAnnotations $
-                     buildUndirectedGraph entityIndex fTerms $
-                     buildUndirectedGraph' entityIndex fGenesets M.empty
+    let graph = updateDanglingNodes sinkIndex preGraph
+    {-
+    --}
 
     scream verb $ show graphSize ++ " nodes"
-    scream verb $ show (M.foldl' (\ac s -> (S.size s) + ac) 0 graph) ++ "edges"
+    scream verb $ show (M.foldl' (\ac s -> (S.size s) + ac) 0 graph) ++ " edges"
     scream verb "Doing some graph post-processing..."
 
     -- If the user specified --noise or --sparsity options, we add or remove
     -- edges respectively.
-    graph' <- simulateSparsity optMissing =<< simulateNoise optNoise graph
+    --graph' <- simulateSparsity optMissing =<< simulateNoise optNoise graph
+    let graph' = graph
 
     scream verb "Writing entity mapping to a file..."
 
@@ -162,7 +193,9 @@ exec opts@Options{..} = do
     scream verb "Writing graph to a file..."
 
     --writeSparseGraph' argOutput entityIndex graph'
+    --
     writeSparseGraph argOutput graph'
+    --writeSparseGraph argOutput graph
 
     return ()
 

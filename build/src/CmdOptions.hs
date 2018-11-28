@@ -57,9 +57,9 @@ data Options = Options {
     -- Generates graph permutations up to N for permutation testing
   , optPermute :: Int
     -- Adds X% of noise (false associations/edges) to the graph
-  , optNoise :: Int
+  , optNoise :: Float
     -- Removes X% of associations/edges from the graph
-  , optMissing :: Int
+  , optMissing :: Float
     -- Required argument: the output file the serialized graph is saved to
   , argOutput :: FilePath
 
@@ -115,9 +115,9 @@ options = Options {
                      typ "BOOL" &= help txtDirected
   , optPermute     = def &= explicit &= name "permute" &= typ "INT" &= 
                      help txtPermute
-  , optNoise       = def &= explicit &= name "noise" &= typ "INT" &= 
+  , optNoise       = def &= explicit &= name "noise" &= typ "FLOAT" &= 
                      help txtNoise
-  , optMissing     = def &= explicit &= name "missing" &= typ "INT" &= 
+  , optMissing     = def &= explicit &= name "missing" &= typ "FLOAT" &= 
                      help txtMissing
   , argOutput      = def &= argPos 0 &= typFile
 }
