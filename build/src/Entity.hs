@@ -10,7 +10,20 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Entity where
+module Entity (
+
+    Entity(..)
+  , buildGeneEntity
+  , buildGeneSetEntity
+  , buildHomologEntity
+  , buildSinkEntity
+  , buildTermEntity
+  , flattenEntities
+  , flattenEntities'
+  , serializeEntity
+  , tagEntities
+
+) where
 
 import Control.DeepSeq       (NFData)
 import Data.ByteString.Char8 (ByteString)
@@ -22,8 +35,6 @@ import qualified Data.ByteString.Char8 as B
 import qualified Data.Map.Strict       as M
 import qualified Data.Set              as S
 import qualified Data.Vector           as V
-
-import Utility ((<+>))
 
 -- | The Gene type, which is simply a numeric gene ID. Normally this will be a
 -- | non-permanent GeneWeaver ID.
@@ -40,8 +51,8 @@ data Homolog = Homolog !Int deriving (Show, Eq, Ord, Generic, NFData)
 --
 data GeneSet = GeneSet {
 
-      gsid      :: !Int
-    , species   :: !Int
+      gsid    :: !Int
+    , species :: !Int
 
 } deriving (Show, Generic, NFData)
 
@@ -50,8 +61,8 @@ data GeneSet = GeneSet {
 --
 data Term = Term {
 
-      uid   :: !ByteString
-    , name  :: !ByteString
+      uid  :: !ByteString
+    , name :: !ByteString
 
 } deriving (Show, Generic, NFData)
 
@@ -82,8 +93,13 @@ instance Eq Term where
 instance Ord Term where
     compare (Term x _) (Term y _) = compare x y
 
+-- | Utility function for vector concatenation
 --
----- Helper functions for constructing Entity values.
+(<+>) :: Vector a -> Vector a -> Vector a
+--
+(<+>) = (V.++)
+
+-- | Helper functions for constructing Entity values.
 --
 
 buildGeneSetEntity :: Int -> Int -> Entity
@@ -106,68 +122,6 @@ buildSinkEntity :: Entity
 --
 buildSinkEntity = Sink
 
---
----- Helper functions for determining entity types.
---
-
-isGene :: Entity -> Bool
---
-isGene (EGene _) = True
-isGene _ = False
-
-isHomolog :: Entity -> Bool
---
-isHomolog (EHomolog _) = True
-isHomolog _ = False
-
-isGeneSet :: Entity -> Bool
---
-isGeneSet (EGeneSet _) = True
-isGeneSet _ = False
-
-isTerm :: Entity -> Bool
---
-isTerm (ETerm _) = True
-isTerm _ = False
-
-isSink :: Entity -> Bool
---
-isSink (Sink) = True
-isSink _ = False
-
---
----- Helper functions for filtering lists of entities
---
-
-ffilter :: (Applicative f, Foldable f, Monoid (f a)) => 
-           (a -> Bool) -> f a -> f a
---
-ffilter p = foldMap (\a -> if p a then pure a else mempty)
-
-onlyTerms :: (Applicative f, Foldable f, Monoid (f Entity)) =>
-             f Entity -> f Entity
---
-onlyTerms = ffilter isTerm
-    where
-        isTerm (ETerm _) = True
-        isTerm _ = False
-
-onlyGeneSets ::  (Applicative f, Foldable f, Monoid (f Entity)) =>
-                 f Entity -> f Entity
---
-onlyGeneSets = ffilter isGS
-    where
-        isGS (EGeneSet _) = True
-        isGS _ = False
-
-onlyGenes :: (Applicative f, Foldable f, Monoid (f Entity)) =>
-             f Entity -> f Entity
---
-onlyGenes = ffilter isGene
-    where
-        isGene (EGene _) = True
-        isGene _ = False
-
 -- | Removes duplicates from the list by inserting them into a Set and then
 -- | converting back to a list. O(n log n) runtime.
 --
@@ -188,21 +142,7 @@ removeDuplicates' = V.fromList . removeDuplicates . V.toList
 --
 tagEntities :: Vector Entity -> Map Entity Int
 --
-tagEntities es = M.fromList $! V.toList $! V.zip es $! 
-                 V.iterateN (V.length es) (+1) 0
-
--- | Takes in genes, sets, and terms, removes duplicates from each list and
--- | converts them into Entity types.
---
-convertEntities :: [Gene] -> [GeneSet] -> [Term] -> [Entity]
---
-convertEntities gs gss ts = gs' ++ gss' ++ ts'
-    where
-        -- Maps each entity type to the actual Entity type
-        gs' = fmap EGene $! removeDuplicates gs
-        gss' = fmap EGeneSet $! removeDuplicates gss
-        ts' = fmap ETerm $! removeDuplicates ts
-
+tagEntities es = M.fromList $! V.toList $! V.zip es $! V.iterateN (V.length es) (+1) 0
 
 -- | Takes in a list of 1:1 Entity relationships, converts them into a 
 -- | single list of entities with duplicates removed, and merges them with a 
@@ -218,30 +158,11 @@ flattenEntities ve vf = removeDuplicates' $ ve' <+> vf
 -- | Exactly like flatteEntities but uses a list of 1:many Entity
 -- | relationships.
 --
-flattenEntities' :: Vector (Entity, Vector Entity) -> Vector Entity
-                 -> Vector Entity
+flattenEntities' :: Vector (Entity, Vector Entity) -> Vector Entity -> Vector Entity
 --
 flattenEntities' ve vf = removeDuplicates' $ ve' <+> vf
     where
         ve' = V.map fst ve <+> V.concatMap snd ve
-
--- | Takes in entity relationships from all three input types (edge lists,
--- | genesets, and annotations) and converts them into a single list of
--- | entities with duplicates removed. The resulting list can then be used in 
--- | the creation of the Entity graph.
---
---flattenEntities :: Vector (Entity, Entity) -> Vector (Entity, Entity) 
---                -> Vector (Entity, Vector Entity) -> Vector (Entity, Entity) 
---                -> Vector (Entity, Entity) -> Vector Entity
---                   
-----
---flattenEntities es hs gs as ts = removeDuplicates' $ es' <+> hs' <+> gs' <+> as' <+> ts'
---    where
---        es' = V.map fst es <+> V.map snd es
---        hs' = V.map fst hs <+> V.map snd hs
---        gs' = V.map fst gs <+> V.concat (V.toList $ V.map snd gs)
---        as' = V.map fst as <+> V.map snd as
---        ts' = V.map fst ts <+> V.map snd ts
 
 -- | Serializes an Entity value into an appropriate bytestring for display or
 -- | output.

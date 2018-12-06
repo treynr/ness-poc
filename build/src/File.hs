@@ -9,22 +9,22 @@
 
 module File where
 
-import Control.Applicative      ((<$>))
-import Control.DeepSeq          (($!!))
-import Control.Monad            (forM_)
-import Data.Maybe               (fromMaybe)
-import Data.ByteString.Char8    (ByteString)
-import Data.List                (sortOn)
-import Data.Map.Strict          (Map)
-import Data.Set                 (Set)
-import Data.Vector              (Vector)
-import System.FilePath          ((</>), takeDirectory, takeFileName)
-import System.IO                (withFile, IOMode(WriteMode))
+import Control.Applicative   ((<$>))
+import Control.DeepSeq       (($!!))
+import Control.Monad         (forM_)
+import Data.Maybe            (fromMaybe)
+import Data.ByteString.Char8 (ByteString)
+import Data.List             (sortOn)
+import Data.Map.Strict       (Map)
+import Data.Set              (Set)
+import Data.Vector           (Vector)
+import System.FilePath       ((</>), takeDirectory, takeFileName)
+import System.IO             (withFile, IOMode(WriteMode))
 
-import qualified Data.ByteString.Char8  as B
-import qualified Data.Map.Strict        as M
-import qualified Data.Set               as S
-import qualified Data.Vector            as V
+import qualified Data.ByteString.Char8 as B
+import qualified Data.Map.Strict       as M
+import qualified Data.Set              as S
+import qualified Data.Vector           as V
 
 import Entity ( Entity(..), buildGeneEntity, buildGeneSetEntity
               , buildHomologEntity, buildTermEntity, serializeEntity
@@ -36,6 +36,8 @@ createEntityMapPath fp = dir </> "entity-map-" ++ name
     where
         name = takeFileName fp
         dir = takeDirectory fp
+
+-- TODO: Rewrite using cassava
 
 -- | Removes null bytestrings from the list of bytestrings.
 --

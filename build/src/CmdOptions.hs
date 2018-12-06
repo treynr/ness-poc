@@ -14,6 +14,7 @@
 
 module CmdOptions (
    Options(..)
+ , checkOptions
  , getOptions
  , handleAnnotations
  , handleEdges
@@ -23,14 +24,16 @@ module CmdOptions (
 ) where
 
 import Control.Applicative    ((<$>))
-import Control.Monad          (forM)
+import Control.Monad          (forM, when)
 import Data.Vector            (Vector)
 import System.Console.CmdArgs ( Data, Typeable, (&=), argPos, cmdArgs, def
                               , explicit, help, helpArg, name, program 
                               , summary, typ, typFile, verbosity, versionArg
                               )
+import System.Exit            (ExitCode(ExitFailure), exitWith)
 
-import qualified Data.Vector     as V
+
+import qualified Data.Vector as V
 
 import Entity (Entity(..))
 import File   ( readAnnotationFile, readEdgeListFile, readGenesetFile
@@ -38,7 +41,7 @@ import File   ( readAnnotationFile, readEdgeListFile, readGenesetFile
               )
 import Info   (_DESC, _EXEC, _INFO, _NAME)
 
--- | Cmd-line option shit.
+-- | Cmd-line options.
 --
 data Options = Options {
 
@@ -56,10 +59,6 @@ data Options = Options {
   , optDirected :: Bool
     -- Generates graph permutations up to N for permutation testing
   , optPermute :: Int
-    -- Adds X% of noise (false associations/edges) to the graph
-  , optNoise :: Float
-    -- Removes X% of associations/edges from the graph
-  , optMissing :: Float
     -- Required argument: the output file the serialized graph is saved to
   , argOutput :: FilePath
 
@@ -90,12 +89,6 @@ txtDirected = "Build a directed graph"
 txtPermute :: String
 txtPermute = "Generates graph permutations up to N for permutation testing"
 
-txtNoise :: String
-txtNoise = "Randomly add X% of false edges to the graph to simulate noise"
-
-txtMissing :: String
-txtMissing = "Randomly remove X% of edges from the graph to simulate missing information"
-
 -- | Fills in info about the program's options.
 --
 options :: Options
@@ -115,10 +108,6 @@ options = Options {
                      typ "BOOL" &= help txtDirected
   , optPermute     = def &= explicit &= name "permute" &= typ "INT" &= 
                      help txtPermute
-  , optNoise       = def &= explicit &= name "noise" &= typ "FLOAT" &= 
-                     help txtNoise
-  , optMissing     = def &= explicit &= name "missing" &= typ "FLOAT" &= 
-                     help txtMissing
   , argOutput      = def &= argPos 0 &= typFile
 }
 
@@ -135,10 +124,31 @@ getOptions = cmdArgs $ options
     &= helpArg [explicit, name "help"]
     &= program _EXEC
 
+-- | Checks to ensure certain user supplied options are set. An output file
+-- | must always be specified and at least one data option must be used.
 --
----- These functions check to see if any input options (annotations, edges
----- gene sets, homologs, or ontologies) are specified, then parses and 
----- loads the files.
+checkOptions :: Options -> IO ()
+--
+checkOptions Options{..} = do
+
+    when (null argOutput) $
+        putStrLn "You must specify an output file" >> exitWith (ExitFailure 1)
+
+    let dataOptions = [optEdges, optGenesets, optAnnotations, optOntology, optHomologs]
+
+    when (and $ fmap null dataOptions) $
+            putStrLn "You must specify at least one of these options:" >>
+            putStrLn "    -a/--annotations" >> 
+            putStrLn "    -e/--edges" >> 
+            putStrLn "    -h/--homologs" >>
+            putStrLn "    -g/--genesets" >>
+            putStrLn "    -o/--ontology" >> 
+            exitWith (ExitFailure 1)
+
+--
+---- | These functions check to see if any input options (annotations, edges
+---- | gene sets, homologs, or ontologies) are specified, then parses and 
+---- | loads the files.
 --
 
 handleEdges :: [FilePath] -> IO (Vector (Entity, Entity))
@@ -165,5 +175,4 @@ handleHomologs :: [FilePath] -> IO (Vector (Entity, Entity))
 --
 handleHomologs [] = return V.empty
 handleHomologs fs = V.concat <$> (forM fs $ \f -> readHomologFile f)
-
 

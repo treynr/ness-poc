@@ -25,10 +25,10 @@ import Development.GitRev (gitBranch, gitCommitCount, gitHash)
 import System.Environment (getArgs)
 
 _DESC :: String
-_DESC = "Heterogeneous network builder using functional genomics data"
+_DESC = "Builds heterogeneous networks from functional genomics datasets"
 
 _EXEC :: String
-_EXEC = "ness-build"
+_EXEC = "nessb"
 
 _HASH :: String
 _HASH = $(gitBranch) ++ "@" ++ (take 8 $(gitHash))
@@ -37,7 +37,7 @@ _INFO :: String
 _INFO = _EXEC ++ " v. " ++ _VERS ++ " (" ++ _HASH ++ ")"
 
 _NAME :: String
-_NAME = "NESS (Builder)"
+_NAME = "NESS (Build)"
 
 _VERS :: String
 _VERS = "0.2." ++ $(gitCommitCount)

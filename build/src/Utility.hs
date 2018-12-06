@@ -8,17 +8,10 @@
 
 module Utility where
 
-import Data.Map     (Map)
-import Data.Vector  (Vector)
+import Data.Map    (Map)
+import Data.Vector (Vector)
 
 import qualified Data.Map       as M
-import qualified Data.Vector    as V
-
--- | Alias for vector concatenation.
---
-(<+>) :: Vector a -> Vector a -> Vector a
---
-(<+>) = (V.++)
 
 -- | Don't try this at home kids, it's a bad partial function.
 --

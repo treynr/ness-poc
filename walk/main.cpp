@@ -3,8 +3,7 @@
  * file: main.cpp
  * auth: TR
  * vers: 0.1.0
- * desc: "Performant" random walk with restart (RWR) implementation in C/C++. 
- *       For use with Haskell's FFI
+ * desc: Performant random walk with restart (RWR) implementation in C++. 
  */
 
 #include <algorithm>
@@ -485,32 +484,6 @@ std::vector<std::string> processSeedFile( std::string fp ) {
 
 int main( int argc, char **argv ) {
 
-    /*
-    int shitsize = 0;
-    auto shit = processGraphFileAList("sample-graph.al", shitsize);
-    auto shit1 = normalizeColumnsAList(shitsize, shit);
-    auto shit2 = normalizeColumnsAListNew(shitsize, shit);
-
-    for (auto i = 0; i < shit1.size(); i++) {
-        std::cout << "[" << i << "] ";
-        for (auto c = shit1[i].begin(); c != shit1[i].end(); c++) {
-
-            std::cout << c->first << ": " << c->second << " ";
-        }
-        std::cout << std::endl;
-    }
-    std::cout << std::endl;
-    for (auto i = 0; i < shit2.size(); i++) {
-        std::cout << "[" << i << "] ";
-        for (auto c = shit2[i].begin(); c != shit2[i].end(); c++) {
-
-            std::cout << c->first << ": " << c->second << " ";
-        }
-        std::cout << std::endl;
-    }
-    return 0;
-    */
-    //std::cout << "argc: " << argc << std::endl;
     if (argc < 5) {
 
         printHelp( argv );
@@ -560,8 +533,6 @@ int main( int argc, char **argv ) {
 
     log( args.s_verbosity, "[+] Checking for missing nodes..." );
 
-    //std::cout << size << std::endl;
-    //std::cout << alist.size() << std::endl;
     // Add any missing entities to the graph
     if (args.s_alist) {
 
@@ -580,7 +551,6 @@ int main( int argc, char **argv ) {
 
         size = alist.size();
     }
-    //std::cout << alist.size() << std::endl;
 
     if (emap.empty()) {
 
@@ -634,19 +604,6 @@ int main( int argc, char **argv ) {
     else
         m = normalizeColumnsInPlace( size, m );
 
-    //return 0;
-    /*
-    for (auto i = 0; i < alist.size(); i++) {
-        std::cout << i << ": ";
-        for (auto mit = alist[i].begin(); mit != alist[i].end(); mit++) {
-            std::cout << "(" << mit->first << ", " << mit->second;
-            std::cout << ") ";
-        }
-        std::cout << std::endl;
-    }
-    */
-
-    //return 1;
     // File which will contain the results of our walk
     std::ofstream outFile( args.s_output, std::ofstream::out );
 
@@ -660,15 +617,9 @@ int main( int argc, char **argv ) {
         seed[0] = entDexs[i];
 
         double *vector = NULL;
-
-        //std::cout << "Seeds left: " << (entDexs.size() - i) << std::endl;
-        //std::cout << "The seed is: " << seed[0] << std::endl;
         
         if (args.s_alist) {
 
-            std::cout << args.s_restart << std::endl;
-            std::cout << 1.0 - args.s_restart << std::endl;
-            //std::cout << "Walking the adjacency list..." << std::endl;
             vector = randomWalkAList( 
                 size, 1, seed, alist, args.s_restart, 1.0 - args.s_restart
             );
@@ -703,13 +654,6 @@ int main( int argc, char **argv ) {
         // Filtered results
         std::vector<std::pair<std::string, double>> filtResults;
 
-        // Remove values that are zero
-        //std::copy_if(
-        //    results.begin(),
-        //    results.end(),
-        //    std::back_inserter(filtResults),
-        //    [](std::pair<std::string, double> a) -> bool { return a.second > 0; }
-        //);
         std::copy(
             results.begin(),
             results.end(),
@@ -740,32 +684,6 @@ int main( int argc, char **argv ) {
             );
         }
 
-        /*
-        if (args.s_nsets) {
-
-            filtResults.erase(
-                std::remove_if(
-                    filtResults.begin(),
-                    filtResults.end(),
-                    [](std::pair<std::string, double> a) -> bool { return a.first.substr(0, 2) == "GS"; }
-                ),
-                filtResults.end()
-            );
-        }
-
-        if (args.s_nhomology) {
-
-            filtResults.erase(
-                std::remove_if(
-                    filtResults.begin(),
-                    filtResults.end(),
-                    [](std::pair<std::string, double> a) -> bool { return a.first.substr(0, 3) == "HOM"; }
-                ),
-                filtResults.end()
-            );
-        }
-        */
-
         std::sort(
             filtResults.begin(),
             filtResults.end(),
@@ -777,47 +695,6 @@ int main( int argc, char **argv ) {
 
         free( vector );
     }
-
-
-
-	//double **m = allocateNxN(6);
-
-	//m[0][1] = 1.0;
-	//m[0][3] = 1.0;
-	//m[0][5] = 1.0;
-	//m[1][0] = 1.0;
-	//m[1][2] = 1.0;
-	//m[1][3] = 1.0;
-	//m[2][0] = 1.0;
-	//m[2][1] = 1.0;
-	//m[3][1] = 1.0;
-	//m[3][4] = 1.0;
-	//m[4][1] = 1.0;
-	//m[5][1] = 1.0;
-	//m[5][3] = 1.0;
-
-
-	//double **nc1 = normalizeColumns(6, m);
-	//double **nc2 = normalizeColumns2(6, m);
-
-	//printMatrix(6, nc1);
-	//printMatrix(6, nc2);
-
-	//return 0;
-	//printMatrix(6, m);
-    //for (int r = 0; r < 5; r++) {
-    //    for (int c = 0; c < 5; c++) {
-	//		printf("%f ", m[r][c]);
-	//	}
-	//	printf("\n");
-	//}
-
-	/*
-	double *vec = randomWalkMatrix(6, 0, m, 0.15, 1.0 - 0.15);
-
-    for (int r = 0; r < 6; r++)
-		printf("%f ", vec[r]);
-		*/
 
 	return 0;
 }
