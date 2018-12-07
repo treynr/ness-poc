@@ -1,9 +1,9 @@
 
 /*
  * file: main.cpp
+ * desc: Performant random walk with restart (RWR) implementation in C++. 
  * auth: TR
  * vers: 0.1.0
- * desc: Performant random walk with restart (RWR) implementation in C++. 
  */
 
 #include <algorithm>
@@ -17,6 +17,8 @@
 #include <vector>
 #include <utility>
 #include "walk.h"
+
+bool VERBOSE;
 
 typedef std::unordered_map<std::string, int> EntityMap;
 typedef std::unordered_map<int, std::string> IndexMap;
@@ -61,24 +63,6 @@ struct Arguments {
     // Verbose output
     bool s_verbosity = false;
 };
-
-template<typename _t>
-void log( bool verbosity, _t t ) {
-
-    if (verbosity)
-        std::cout << t << std::endl;
-}
-
-template<typename _t, typename... _a> 
-void log( bool verbosity, _t t, _a... args ) {
-
-    if (verbosity) {
-
-        std::cout << t;
-
-        log( verbosity, args... );
-    }
-}
 
 /**
   * Prints program help and usage.
@@ -247,17 +231,12 @@ double **processGraphFile( std::string fp, int &matrixSize ) {
     if (line.empty())
         return NULL;
 
-    std::cout << "allocating memory" << std::endl;
-
     int lineCount = 0;
     int size = static_cast<int>( strtol(line.c_str(), NULL, 10) );
     double **matrix = allocateNxN( size );
 
-    std::cout << "allocated memory" << std::endl;
-
     while (std::getline(file, line)) {
 
-        //std::cout << "got lines" << std::endl;
         // Shouldn't happen but you never know
         if (line.empty())
             continue;
@@ -266,19 +245,16 @@ double **processGraphFile( std::string fp, int &matrixSize ) {
         //auto columns = split( line, "," );
         auto columns = fastSplit( line, ',' );
 
-        //std::cout << "split lines" << std::endl;
-
         // The number of columns should be the same as the size of the matrix
         // but we're not checking, so if they're different sizes terrible
         // things will happen
-        for (auto i = 0; i < columns.size(); i++) {
+        for (auto i = 0U; i < columns.size(); i++) {
 
             if (columns[i] == "0")
                 matrix[lineCount][i] = 0.0;
             else
                 matrix[lineCount][i] = strtol( columns[i].c_str(), NULL, 10 );
         }
-        //std::cout << "done converting, next line" << std::endl;
 
         lineCount++;
     }
@@ -288,7 +264,6 @@ double **processGraphFile( std::string fp, int &matrixSize ) {
     return matrix;
 }
 
-/*
 AdjacencyList processGraphFileAList( std::string fp, int &matrixSize ) {
 
     std::ifstream   file( fp );
@@ -314,66 +289,6 @@ AdjacencyList processGraphFileAList( std::string fp, int &matrixSize ) {
         // Node doesn't have neighbors
         if (line.empty()) {
 
-            alist[lineCount] = std::unordered_map<int, double>();
-
-            continue;
-        }
-
-        // vector of strings representing each column in this row
-        auto columns = fastSplit( line, ',' );
-
-        if (columns.size() == 0) {
-
-            alist[lineCount] = std::unordered_map<int, double>();
-
-            continue;
-        }
-
-        // In this case each column is a node index, so there is an edge
-        // between the current node given by lineCount and each node index in
-        // the columns variable
-        for (auto i = 0; i < columns.size(); i++) {
-
-            int colDex = static_cast<int>( strtol(columns[i].c_str(), NULL, 10) );
-
-            alist[lineCount].insert( std::make_pair(colDex, 1.0) );
-            //alist[lineCount].insert( std::pair<int, double>(colDex, 1.0) );
-        }
-
-        lineCount++;
-    }
-
-    matrixSize = size;
-
-    return alist;
-}
-*/
-
-AdjacencyList processGraphFileAListNew( std::string fp, int &matrixSize ) {
-
-    std::ifstream   file( fp );
-    std::string     line;
-
-    if (!file)
-        return AdjacencyList();
-
-    // The first line contains the size of the NxN matrix
-    std::getline(file, line);
-
-    if (line.empty())
-        return AdjacencyList();
-
-    AdjacencyList alist;
-    int lineCount = 0;
-    int size = static_cast<int>( strtol(line.c_str(), NULL, 10) );
-
-    alist.resize( size );
-
-    while (std::getline(file, line)) {
-
-        // Node doesn't have neighbors
-        if (line.empty()) {
-
             alist[lineCount] = std::vector<std::pair<int, double>>();
 
             continue;
@@ -392,7 +307,7 @@ AdjacencyList processGraphFileAListNew( std::string fp, int &matrixSize ) {
         // In this case each column is a node index, so there is an edge
         // between the current node given by lineCount and each node index in
         // the columns variable
-        for (auto i = 0; i < columns.size(); i++) {
+        for (auto i = 0U; i < columns.size(); i++) {
 
             int colDex = static_cast<int>( strtol(columns[i].c_str(), NULL, 10) );
 
@@ -493,6 +408,9 @@ int main( int argc, char **argv ) {
 
     Arguments args = parseArguments( argc, argv );
 
+	// Set global verbosity
+	VERBOSE = args.s_verbosity;
+
     log( args.s_verbosity, "[+] Parsing graph file..." );
 
     int size = 0;
@@ -501,7 +419,7 @@ int main( int argc, char **argv ) {
 
     if (args.s_alist) {
 
-        alist = processGraphFileAListNew( args.s_graph, size );
+        alist = processGraphFileAList( args.s_graph, size );
 
         if (size == 0 || alist.empty()) {
 
@@ -536,7 +454,7 @@ int main( int argc, char **argv ) {
     // Add any missing entities to the graph
     if (args.s_alist) {
 
-        int maxIndex = 0;
+        unsigned int maxIndex = 0;
 
         for (auto eit = emap.begin(); eit != emap.end(); eit++) {
             if (eit->second > maxIndex)
@@ -600,7 +518,7 @@ int main( int argc, char **argv ) {
     log( args.s_verbosity, "[+] Column normalizing the matrix..." );
 
     if (args.s_alist)
-        alist = normalizeColumnsAListNew( size, alist );
+        alist = normalizeColumnsAList( size, alist );
     else
         m = normalizeColumnsInPlace( size, m );
 
@@ -612,7 +530,7 @@ int main( int argc, char **argv ) {
 
     log( args.s_verbosity, "[+] Starting the walk..." );
 
-    for (int i = 0; i < entDexs.size(); i++) {
+    for (auto i = 0U; i < entDexs.size(); i++) {
 
         seed[0] = entDexs[i];
 
@@ -634,20 +552,20 @@ int main( int argc, char **argv ) {
         // Begin converting result indices to entities and sorting
         std::vector<std::pair<std::string, double>> results;
 
-        for (int i = 0; i < size; i++) {
+        for (int j = 0; j < size; j++) {
 
-            auto it = imap.find( i );
+            auto it = imap.find( j );
 
             if (it != imap.end()) {
 
-                results.push_back( std::make_pair(it->second, vector[i]) );
+                results.push_back( std::make_pair(it->second, vector[j]) );
 
             } else {
                 std::stringstream s;
 
                 s << "UNKNOWNENTITY:" << i;
 
-                results.push_back( std::make_pair(s.str(), vector[i]) );
+                results.push_back( std::make_pair(s.str(), vector[j]) );
             }
         }
 

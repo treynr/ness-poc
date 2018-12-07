@@ -3,17 +3,17 @@
 
 /*
  * file: walk.c
+ * desc: Performant random walk with restart (RWR) implementation in C++.
  * auth: TR
  * vers: 0.1.0
- * desc: "Performant" random walk with restart (RWR) implementation in C. For
- * use with Haskell's FFI
  */
 
 #include <iostream>
 #include <unordered_map>
 #include <vector>
 
-//typedef std::vector<std::unordered_map<int, double>> AdjacencyList;
+extern bool VERBOSE;
+
 typedef std::vector<std::vector<std::pair<int, double>>> AdjacencyList;
 
 void printMatrix( int n, double **m );
@@ -27,7 +27,6 @@ double **normalizeColumns( int size, double **m );
 double **normalizeColumnsInPlace( int size, double **m );
 
 AdjacencyList normalizeColumnsAList( int size, AdjacencyList alist );
-AdjacencyList normalizeColumnsAListNew( int size, AdjacencyList alist );
 
 double *initialProxVector( int size, int seed );
 
@@ -46,10 +45,10 @@ double *calculateProxVector(
 
 double calculateConvergence( int size, double *pv, double *cv );
 
-//double *randomWalkMatrix( int size, int seed, double **m, double a0, double a1 );
-double *randomWalkMatrix( int size, int seedSize, int *seed, double **m, double a0, double a1 );
-//double *randomWalkVector( int size, int seed, double *v, double a0, double a1 );
 double *randomWalkVector( int size, int seedSize, int *seed, double *v, double alpha );
+
+double *randomWalkMatrix( int size, int seedSize, int *seed, double **m, double a0, double a1 );
+
 double *randomWalkMatrix(
     int size, 
     int seedSize, 
@@ -68,6 +67,24 @@ double *randomWalkAList(
     double a0, 
     double a1
 );
+
+template<typename _t>
+void log( bool verbosity, _t t ) {
+
+    if (verbosity)
+        std::cout << t << std::endl;
+}
+
+template<typename _t, typename... _a>
+void log( bool verbosity, _t t, _a... args ) {
+
+    if (verbosity) {
+
+        std::cout << t;
+
+        log( verbosity, args... );
+    }
+}
 
 #endif
 
