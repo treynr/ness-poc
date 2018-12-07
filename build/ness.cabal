@@ -2,9 +2,9 @@ name:                ness
 version:             0.1.0
 synopsis:            Heterogeneous network builder.
 -- description:
--- homepage:
--- license:             BSD3
--- license-file:        LICENSE
+homepage:            https://github.com/treynr/ness
+license:             MIT
+--license-file:        LICENSE
 author:              TR
 maintainer:          tim@fin0c.net
 copyright:           2017 TR
