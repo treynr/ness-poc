@@ -6,8 +6,8 @@ homepage:            https://github.com/treynr/ness
 license:             MIT
 --license-file:        LICENSE
 author:              TR
-maintainer:          tim@fin0c.net
-copyright:           2017 TR
+--maintainer:          
+copyright:           2018 TR
 category:            Bioinformatics
 build-type:          Simple
 extra-source-files:  readme
