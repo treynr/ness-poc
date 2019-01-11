@@ -1,16 +1,14 @@
 name:                ness
-version:             0.1.0
+version:             1.0.0
 synopsis:            Heterogeneous network builder.
 -- description:
 homepage:            https://github.com/treynr/ness
 license:             MIT
---license-file:        LICENSE
 author:              TR
---maintainer:          
 copyright:           2018 TR
 category:            Bioinformatics
 build-type:          Simple
-extra-source-files:  readme
+extra-source-files:  readme.rst
 cabal-version:       >=1.10
 
 Flag static
@@ -32,6 +30,7 @@ library
   exposed-modules:     File
                      , CmdOptions
                      , Entity
+                     , Entity.Internal
                      , Graph
                      , Info
                      , Types
@@ -73,16 +72,27 @@ executable nessb
                      , ness
   default-language:    Haskell2010
 
-test-suite walker-test
+test-suite tests
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
-  main-is:             Spec.hs
+  main-is:             Tests.hs
+  other-modules:       TestFile
+                     , TestEntity
+                     , TestGraph
   build-depends:       base
-                     , walker
-  ghc-options:         -threaded -rtsopts -with-rtsopts=-N -O0
+                     , containers
+                     , tasty
+                     , tasty-hunit
+                     , tasty-quickcheck
+                     , vector
+                     , ness
+  ghc-options:         -threaded 
+                       -rtsopts 
+                       -with-rtsopts=-N 
+                       -O3
   default-language:    Haskell2010
 
 source-repository head
   type:     git
-  location: https://github.com/githubuser/walker
+  location: https://github.com/treynr/ness
 

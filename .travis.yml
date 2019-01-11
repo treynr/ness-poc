@@ -1,0 +1,33 @@
+
+sudo: false
+
+language: minimal
+
+cache:
+    directories:
+        - $HOME/.stack
+
+addons:
+    apt:
+        packages:
+            - libgmp-dev
+
+before_install:
+    ## Local bin directory is where stack and compiled executables go
+    - mkdir -p $HOME/.local/bin
+    - export PATH=$HOME/.local/bin:$PATH
+
+install:
+    ## Install dependencies. Stack is the only one we need to retrieve
+    - travis_retry curl -s -o stack.tar.gz -L https://get.haskellstack.org/stable/linux-x86_64.tar.gz 
+    - tar -xzf stack.tar.gz --wildcards --strip-components 1 -C $HOME/.local/bin '*/stack'
+
+script:
+    ## Build NESS
+    - cd $TRAVIS_BUILD_DIR/build && make install 
+    - cd $TRAVIS_BUILD_DIR/walk && make install 
+    ## Test the heterogeneous network builder
+    - cd $TRAVIS_BUILD_DIR/build && make test
+    ## Test the random walk algorithm
+    - cd $TRAVIS_BUILD_DIR/walk && make test
+

@@ -36,6 +36,8 @@ import qualified Data.Map.Strict       as M
 import qualified Data.Set              as S
 import qualified Data.Vector           as V
 
+import Entity.Internal ((<+>), removeDuplicates, removeDuplicates')
+
 -- | The Gene type, which is simply a numeric gene ID. Normally this will be a
 -- | non-permanent GeneWeaver ID.
 --
@@ -93,12 +95,6 @@ instance Eq Term where
 instance Ord Term where
     compare (Term x _) (Term y _) = compare x y
 
--- | Utility function for vector concatenation
---
-(<+>) :: Vector a -> Vector a -> Vector a
---
-(<+>) = (V.++)
-
 -- | Helper functions for constructing Entity values.
 --
 
@@ -121,20 +117,6 @@ buildTermEntity tid tname = ETerm $ Term tid tname
 buildSinkEntity :: Entity
 --
 buildSinkEntity = Sink
-
--- | Removes duplicates from the list by inserting them into a Set and then
--- | converting back to a list. O(n log n) runtime.
---
-removeDuplicates :: Ord a => [a] -> [a]
---
-removeDuplicates = S.toList . S.fromList
-
--- | Removes duplicates from the vector by inserting them into a Set and then
--- | converting back to vector. O(n log n) runtime.
---
-removeDuplicates' :: Ord a => Vector a -> Vector a
---
-removeDuplicates' = V.fromList . removeDuplicates . V.toList
 
 -- | Given a list of entities, this function marks them with unique integer IDs
 -- | that are 0-indexed for use in an adjacency matrix and returns the mapping

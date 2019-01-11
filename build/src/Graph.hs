@@ -38,7 +38,7 @@ updateAdjacencyList u m es as
     | u = V.foldl' (\ac (e1, e2) -> assoc e1 e2 : assoc e2 e1 : ac) as es
     | otherwise = V.foldl' (\ac (e1, e2) -> assoc e1 e2 : ac) as es
     where
-        assoc a b = ((getIndex b m, getIndex a m), 1.0)
+        assoc a b = ((getIndex a m, getIndex b m), 1.0)
 
 -- | Updates the an adjacency list with using the given list of 1:many Entity
 -- | associations (typically these are network edges). During construction of
@@ -56,8 +56,7 @@ updateAdjacencyList' u m es as
     | u = V.foldl' (\ac (e1, es') -> updateList' e1 es' ac) as es 
     | otherwise = V.foldl' (\ac (e1, es') -> updateList e1 es' ac) as es 
     where
-        --assoc a b = ((getIndex a m, getIndex b m), 1.0)
-        assoc a b = ((getIndex b m, getIndex a m), 1.0)
+        assoc a b = ((getIndex a m, getIndex b m), 1.0)
         updateList a bs as' = V.foldl' (\ac b -> assoc a b : ac) as' bs
         updateList' a bs as' = V.foldl' (\ac b -> assoc b a : assoc a b : ac) as' bs
 

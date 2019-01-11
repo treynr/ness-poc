@@ -72,7 +72,7 @@ parseEdgeListFile bs = V.fromList $!! map (tuplify . B.split '\t') $
                        preprocessFile bs
     where
         toInt = fst . fromMaybe (0, "") . B.readInt
-        tuplify (a:b:_) = (buildGeneEntity $ toInt a, buildGeneEntity $ toInt b)
+        tuplify (_:a:b:_) = (buildGeneEntity $ toInt a, buildGeneEntity $ toInt b)
 
 -- | Reads and parses the edge list file.
 --

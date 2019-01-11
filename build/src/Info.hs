@@ -21,7 +21,7 @@ module Info (
 
 import Data.List          (intercalate)
 import Data.Time          (getCurrentTime, toGregorian, utctDay)
-import Development.GitRev (gitBranch, gitCommitCount, gitHash)
+import Development.GitRev (gitHash)
 import System.Environment (getArgs)
 
 _DESC :: String
@@ -31,16 +31,16 @@ _EXEC :: String
 _EXEC = "nessb"
 
 _HASH :: String
-_HASH = $(gitBranch) ++ "@" ++ (take 8 $(gitHash))
+_HASH = take 8 $(gitHash)
 
 _INFO :: String
-_INFO = _EXEC ++ " v. " ++ _VERS ++ " (" ++ _HASH ++ ")"
+_INFO = _EXEC ++ " v. " ++ _VERS ++ "-" ++ _HASH
 
 _NAME :: String
 _NAME = "NESS (Build)"
 
 _VERS :: String
-_VERS = "0.2." ++ $(gitCommitCount)
+_VERS = "1.0.0"
 
 -- | Data export tag
 -- | Attaches program version info and command line arguments for

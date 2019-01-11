@@ -414,7 +414,7 @@ double *randomWalkAList(
         size, preVector, p0, alist, a0, a1
     );
 
-    double threshold = 1.0E-5;
+    double threshold = 1.0E-8;
 
 	log( VERBOSE,"[+] Walking the graph...");
 

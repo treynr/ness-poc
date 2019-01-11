@@ -1,0 +1,9 @@
+## A sample list of ontology annotations
+## Columns are the ontology ID, a unique gene ID, evidence code, and taxon ID
+GO:0051960	11	TAS	9606
+GO:0051960	16	TAS	9606
+GO:0007399	11	TAS	9606
+GO:0007399	16	TAS	9606
+GO:0070997	12	TAS	9606
+GO:0070997	11	TAS	9606
+GO:0070997	16	TAS	9606

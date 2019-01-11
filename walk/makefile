@@ -10,5 +10,8 @@ nessw: walk.cpp main.cpp
 install: nessw
 	cp $(OUT) $(INSTALL)
 
+test: nessw
+	cd tests && ./test-walk.sh
+
 clean:
 	rm -f *.o *.so nessw

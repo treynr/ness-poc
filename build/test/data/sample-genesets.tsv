@@ -1,0 +1,5 @@
+## A sample list of gene sets from (usually) experimental studies
+## Columns are the gene set ID, taxon ID, and genes
+246376	9606	10|11|12
+75605	9606	16|15
+246626	9606	13

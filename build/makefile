@@ -2,14 +2,18 @@ stackopts = --copy-bins
 staticopts = --flag "*:static"
 
 dynamic:
-	stack build $(stackopts)
+	stack build
 
 static:
-	stack build $(staticopts) $(stackopts)
+	stack build $(staticopts)
 
 install:
-	stack install
+	stack build $(stackopts)
+
+test: FORCE
+	stack test
 
 clean:
 	stack clean --full
 
+FORCE:

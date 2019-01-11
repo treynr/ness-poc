@@ -1,0 +1,7 @@
+## A sample list of ontology term relationships that can be used to reconstruct the DAG
+## Columns are the child term ID and parent term ID
+GO:0051960	GO:0007399
+GO:0022008	GO:0007399
+GO:0021675	GO:0007399
+GO:0007399	GO:0048731
+GO:0031641	GO:0051960

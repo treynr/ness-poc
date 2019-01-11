@@ -58,7 +58,7 @@ struct Arguments {
     bool s_nhomology = false;
 
     // Use optimized adjacency list representation
-    bool s_alist = false;
+    bool s_alist = true;
 
     // Verbose output
     bool s_verbosity = false;
@@ -71,19 +71,26 @@ void printHelp( char **argv ) {
 
     std::cout << "usage: " << argv[0] << " [options] ";
     std::cout << "<graph> <entity-index-map> <seeds> <output>" << std::endl;
-    std::cout << "    -a --alist: use an adjacency list graph representation";
     std::cout << std::endl;
-    std::cout << "    -r --restart: restart parameter";
+    std::cout << "NESS (Walk)" << std::endl;
+    std::cout << "Performs a random walk with restart over heterogeneous networks";
+    std::cout << std::endl << std::endl;
+    std::cout << "I/O options:" << std::endl;
+    std::cout << "  -f, --filter=STRING  filter node types using the given prefix";
     std::cout << std::endl;
-    std::cout << "    -f --filter: filter node types using the given prefix";
+    std::cout << "  -m, --matrix         use an adjacency matrix graph representation";
     std::cout << std::endl;
-    std::cout << "    --no-sets: remove gene set nodes from the output";
+    std::cout << "RWR options:" << std::endl;
+    std::cout << "  -r, --restart        restart parameter";
     std::cout << std::endl;
-    std::cout << "    --no-homology: remove homology nodes from the output";
+    //std::cout << "    --no-sets: remove gene set nodes from the output";
+    //std::cout << std::endl;
+    //std::cout << "    --no-homology: remove homology nodes from the output";
+    //std::cout << std::endl;
+    std::cout << "Misc. options:" << std::endl;
+    std::cout << "  -h, --help           print help";
     std::cout << std::endl;
-    std::cout << "    -h --help: print help";
-    std::cout << std::endl;
-    std::cout << "    -v --verbose: clutter your screen with output";
+    std::cout << "  -v, --verbose        clutter your screen with output";
     std::cout << std::endl;
     std::cout << std::endl;
     std::cout << "arguments <graph>, <entity-index-map>, <seeds>, and ";
@@ -124,13 +131,16 @@ Arguments parseArguments( int argc, char **argv ) {
 
         } else if (arg == "-v" || arg == "--verbose") {
 
-            //std::cout << "--verbose: "<< std::endl;
             args.s_verbosity = true;
 
-        } else if (arg == "-a" || arg == "--alist") {
+        } else if (arg == "-m" || arg == "--matrix") {
 
-            //std::cout << "--alist: "<< std::endl;
-            args.s_alist = true;
+            args.s_alist = false;
+
+        // Eat any unknown arguments
+        } else if (arg.length() >= 1 && arg[0] == '-') {
+
+            continue;
 
         // Otherwise we just assume it's an argument
         } else {
