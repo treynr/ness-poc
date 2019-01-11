@@ -1,4 +1,7 @@
 
+.. image:: https://img.shields.io/travis/treynr/ness.svg?style=flat-square
+    :target: https://travis-ci.org/treynr/ness
+
 Network Enhanced Semantic Similarity (NESS)
 ===========================================
 
@@ -24,6 +27,7 @@ This flexible approach enables cross-species analysis applications that
 leverage model organism data in the context of sparse datasets. 
 Some applications include gene/variant-disease prioritization, disease classification, 
 and semantic similarity analysis.
+
 
 Getting started
 ---------------
@@ -70,4 +74,20 @@ across a cluster.
 See the `walk documentation`__ on how to compile and use :code:`nessb`.
 
 .. __: walk/readme.rst
+
+
+Funding
+-------
+
+Part of the GeneWeaver__ data repository and analysis platform.
+For a detailed description, see this article__.
+
+.. __: https://geneweaver.org
+.. __: https://www.ncbi.nlm.nih.gov/pubmed/26656951
+
+This work has been supported by joint funding from the NIAAA and NIDA, NIH [R01 AA18776];
+and `The Jackson Laboratory`__ (JAX) Center for Precision Genetics of the NIH 
+[U54 OD020351].
+
+.. __: https://jax.org
 
