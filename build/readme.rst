@@ -55,7 +55,7 @@ All gene (which includes annotated and homologous genes) and gene set identifier
 **must** be integers.
 If using something like gene symbols, these symbols must be mapped to some unique integer
 identifier prior to their use as :code:`nessb` input.
-:code:`nessb` will likely be updated in the future to accomodate string-basd identifiers.
+:code:`nessb` will likely be updated in the future to accomodate string-based identifiers.
 
 Annotations
 '''''''''''

@@ -12,7 +12,7 @@ Usage
 
     nessw [options] <graph> <entity-index-map> <seeds> <output>
 
-All argumens to :code:`nessw` are files:
+All arguments to :code:`nessw` are files:
 
 - :code:`<graph>`: the heterogeneous network output provided by :code:`nessb`.
   It should be in the form of an adjacency list but :code:`nessw` can also accept an
