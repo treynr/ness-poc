@@ -71,7 +71,7 @@ single seed node with a restart probability of 0.15:
 
 Calculating the complete proximity matrix takes ten or fifteen minutes if distributed
 across a cluster.
-See the `walk documentation`__ on how to compile and use :code:`nessb`.
+See the `walk documentation`__ on how to compile and use :code:`nessw`.
 
 .. __: walk/readme.rst
 
