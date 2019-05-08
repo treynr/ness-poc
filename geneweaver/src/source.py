@@ -14,7 +14,9 @@ from gwlib import db
 ## Hardcoded public resource datasets to retrieve. We exclude some since it either
 ## doesn't make sense to include them or we retrieve them from other sources.
 _ontologies = ['GO', 'MP', 'MA', 'MESH', 'CHEBI', 'DO', 'EFO', 'HPO']
-_resources = ['ABA', 'CTD', 'GWAS', 'DRG', 'GO', 'MP', 'HP', 'MESH', 'MSIGDB', 'OMIM', 'KEGG']
+_resources = [
+    'ABA', 'CTD', 'GWAS', 'DRG', 'GO', 'MP', 'HP', 'MESH', 'MSIGDB', 'OMIM', 'KEGG'
+]
 
 
 def get_tier3_sets():
@@ -45,7 +47,13 @@ def get_tier5_sets(user=0):
         a dataframe containing a gene set ID (gs_id) and gene ID (ode_gene_id) per row.
     """
 
-    return None
+    gsids = db.get_private_geneset_ids(user=user)
+    values = db.get_geneset_values(gsids)
+
+    ## Drop the value column since we don't use it
+    values.drop(['values'], axis=1)
+
+    return values
 
 
 def get_public_resource_sets(resource):
@@ -155,4 +163,19 @@ def get_geneset_annotations(gsids):
     return annotations[['gs_id', 'ont_id']]
 
 
-print('hello')
+def get_homologs(genes):
+    """
+    Retrieve homology mappings for the given set of genes (ode_gene_id).
+
+    arguments
+        genes: a list of genes (ode_gene_id)
+
+    returns
+        a dataframe containing ode_gene_id and hom_id associations
+    """
+
+    ## Remove duplicates
+    genes = list(set(genes))
+
+    return db.get_gene_homologs(genes, source='Homologene')
+
