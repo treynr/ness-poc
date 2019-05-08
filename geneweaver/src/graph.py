@@ -177,3 +177,33 @@ def generate_adjacency_list(graph):
 
     return adjacency
 
+
+def write_adjacency_list(fp, alist):
+    """
+    Write the adjacency list to a file in a format that can be accepted by the NESS
+    RWR program.
+
+    arguments
+        fp:    the filepath
+        alist: the graph represented as an adjacency list
+    """
+
+    with open(fp, 'w') as fl:
+        for k in sorted(alist.keys()):
+            edges = ','.join([str(e) for e in alist[k]])
+
+            print(edges, file=fl)
+
+
+def write_harmonization_map(fp, uids):
+    """
+    Write the GW entity -> UID mapping to a file.
+
+    arguments
+        fp:  the filepath
+        uid: the UID mapping
+    """
+
+    with open(fp, 'w') as fl:
+        for k, v in uids.items():
+            print('\t'.join([str(k), str(v)]), file=fl)
