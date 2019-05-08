@@ -4,6 +4,10 @@
 .stack-work/**
 .stack-work
 
+## IDE stuff
+.idea/**
+.idea
+
 ## performance profiling files
 *.prof
 
