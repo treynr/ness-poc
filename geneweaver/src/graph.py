@@ -7,10 +7,10 @@
 
 import numpy as np
 import networkx as nx
+import pandas as pd
 
-from gwlib import db
-
-import source
+from . import db
+from . import source
 
 
 def get_graph_data_sources(user=0):

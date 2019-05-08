@@ -7,9 +7,8 @@
 
 from __future__ import print_function
 import pandas as pd
-import networkx as nx
 
-from gwlib import db
+from . import db
 
 ## Hardcoded public resource datasets to retrieve. We exclude some since it either
 ## doesn't make sense to include them or we retrieve them from other sources.
