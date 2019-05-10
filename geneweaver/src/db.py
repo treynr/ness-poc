@@ -379,3 +379,154 @@ def get_all_ontology_relations(ontdb_id):
             params={'ontdb_id': ontdb_id}
         )
 
+
+## The following functions are used to get metadata when displaying NESS results.
+
+def get_gene_metadata(genes):
+    """
+    Retrieve gene metadata for the given set of genes (ode_gene_id).
+
+    arguments
+        genes: a list of gene identifiers (ode_gene_id)
+
+    returns
+        a dataframe containing gene metadata
+    """
+
+    genes = tuplify(genes)
+
+    with CONNPOOL as conn:
+        return pd.read_sql_query(
+            '''
+            WITH ensembl_id AS (
+                SELECT gdb_id
+                FROM   odestatic.genedb
+                WHERE  gdb_shortname = 'ensembl'
+                LIMIT  1
+            )
+            SELECT    DISTINCT ON (gi.ode_gene_id)
+                      gi.ode_gene_id,
+                      g1.ode_ref_id AS symbol,
+                      g2.ode_ref_id AS ensembl,
+                      s.sp_name AS species
+            FROM      extsrc.gene_info gi
+            LEFT JOIN extsrc.gene g1
+            USING     (ode_gene_id)
+            LEFT JOIN extsrc.gene g2
+            USING     (ode_gene_id)
+            LEFT JOIN odestatic.species s
+            ON        gi.sp_id = s.sp_id
+            WHERE     gi.ode_gene_id IN %s AND
+                      g1.ode_pref AND
+                      g2.gdb_id = (SELECT * FROM ensembl_id);
+            ''',
+            conn,
+            params=(genes,)
+        )
+
+
+def get_geneset_metadata(genesets):
+    """
+    Retrieve gene set metadata for the given set of gene set identifiers (gs_id).
+
+    arguments
+        genesets: a list of gene set identifiers (gs_id)
+
+    returns
+        a dataframe containing gene set metadata
+    """
+
+    genesets = tuplify(genesets)
+
+    with CONNPOOL as conn:
+        return pd.read_sql_query(
+            '''
+            SELECT    gs.gs_id,
+                      gs.cur_id AS tier,
+                      COALESCE(at.at_abbrev, 'Curated') AS attribution,
+                      s.sp_name AS species,
+                      gs.gs_name AS name
+            FROM      production.geneset gs
+            LEFT JOIN odestatic.species s
+            ON        gs.sp_id = s.sp_id
+            LEFT JOIN odestatic.attribution at
+            ON        gs.gs_attribution = at.at_id
+            WHERE     gs.gs_id IN %s;
+            ''',
+            conn,
+            params=(genesets,)
+        )
+
+
+def get_ontology_metadata(onts):
+    """
+    Retrieve ontology metadata for the given set of ontology identifiers (ont_id).
+
+    arguments
+        onts: a list of ontology identifiers (ont_id)
+
+    returns
+        a dataframe containing ontology metadata
+    """
+
+    onts = tuplify(onts)
+
+    with CONNPOOL as conn:
+        return pd.read_sql_query(
+            '''
+            SELECT    ont.ont_id,
+                      odb.ontdb_name AS ontology,
+                      odb.ontdb_prefix AS ontology_prefix,
+                      ont.ont_ref_id AS term_id,
+                      ont.ont_name AS name 
+            FROM      extsrc.ontology ont
+            LEFT JOIN odestatic.ontologydb odb
+            USING     (ontdb_id)
+            WHERE     ont.ont_id IN %s;
+            ''',
+            conn,
+            params=(onts,)
+        )
+
+
+def get_homology_metadata(homs):
+    """
+    Retrieve homology metadata for the given set of homology identifiers (hom_id).
+
+    arguments
+        homs: a list of homology identifiers (hom_id)
+
+    returns
+        a dataframe containing homology metadata
+    """
+
+    homs = tuplify(homs)
+
+    with CONNPOOL as conn:
+        return pd.read_sql_query(
+            '''
+            WITH ensembl_id AS (
+                SELECT gdb_id
+                FROM   odestatic.genedb
+                WHERE  gdb_shortname = 'ensembl'
+                LIMIT  1
+            )
+            SELECT    DISTINCT ON (h.ode_gene_id)
+                      h.hom_id,
+                      g1.ode_ref_id AS symbol,
+                      g2.ode_ref_id AS ensembl,
+                      sp.sp_name AS species
+            FROM      extsrc.homology h
+            LEFT JOIN extsrc.gene g1
+            ON        h.ode_gene_id = g1.ode_gene_id
+            LEFT JOIN extsrc.gene g2
+            ON        h.ode_gene_id = g2.ode_gene_id
+            LEFT JOIN odestatic.species sp
+            ON        h.sp_id = sp.sp_id
+            WHERE     h.hom_id IN %s AND
+                      g1.ode_pref AND
+                      g2.gdb_id = (SELECT * FROM ensembl_id);
+            ''',
+            conn,
+            params=(homs,)
+        )

@@ -70,12 +70,15 @@ def update_homology_ids(genesets, homology):
     return genesets
 
 
-def harmonize_datasets(ds):
+def harmonize_datasets(ds, add_homology=False):
     """
     Generates node UIDs for all data types in the given dataset.
 
     arguments
-        ds: a dict returned by the function get_graph_data_sources
+        ds:           a dict returned by the function get_graph_data_sources
+        add_homology: if add_homology is true, then the function will also create UIDs
+                      for each homology cluster so they can be linked to edges in the
+                      resulting graph
 
     returns
         a dict mapping datatypes to a UID
@@ -84,9 +87,6 @@ def harmonize_datasets(ds):
     genesets = ds['genesets']
     homology = ds['homology']
     ontologies = ds['ontologies']
-
-    ## Update w/ homology identifiers
-    genesets = update_homology_ids(genesets, homology)
 
     ## Begin merging all identifiers to generate UIDs for each of them
     gs_ids = np.array(list(set(genesets.gs_id.tolist())), dtype=np.int64)
@@ -100,21 +100,31 @@ def harmonize_datasets(ds):
     gs_uids = dict(zip(gs_ids, uids))
     ont_uids = dict(zip(ont_ids, uids[gs_ids.size:]))
     gene_uids = dict(zip(gene_ids, uids[(gs_ids.size + ont_ids.size):]))
+    hom_uids = {}
+
+    if add_homology:
+        hom_ids = np.array(list(set(homology.hom_id.tolist())), dtype=np.int64)
+        hom_uids = np.arange(uids.size, uids.size + hom_ids.size)
+        hom_uids = dict(zip(hom_ids, hom_uids))
 
     return {
         'genesets': gs_uids,
         'ontologies': ont_uids,
-        'genes': gene_uids
+        'genes': gene_uids,
+        'homology': hom_uids
     }
 
 
-def build_heterogeneous_graph(ds, uids):
+def build_heterogeneous_graph(ds, uids, add_homology=False):
     """
     Build the heterogeneous graph structure.
 
     arguments
-        ds:      datasets from GeneWeaver to use
-        uid_map: mapping to convert GWIDs into graph UIDs
+        ds:           datasets from GeneWeaver to use
+        uid_map:      mapping to convert GWIDs into graph UIDs
+        add_homology: if add_homology is true, the function will add homology clusters
+                      to the graph as a separate node type and link genes to each
+                      cluster
 
     returns
         the graph
@@ -152,6 +162,18 @@ def build_heterogeneous_graph(ds, uids):
     hetnet.add_edges_from([tuple(r) for r in genesets.values])
     hetnet.add_edges_from([tuple(r) for r in ontologies.values])
     hetnet.add_edges_from([tuple(r) for r in annotations.values])
+
+    if add_homology:
+        homology = ds['homology']
+        homology['hom_id'] = homology.hom_id.map(uids['homology'])
+        homology['ode_gene_id'] = homology.ode_gene_id.map(uids['genes'])
+
+        homology = homology.dropna()
+        homology = homology.astype({'hom_id': np.int64, 'ode_gene_id': np.int64})
+
+        print('# hom edges: %s' % len(homology.index), file=sys.stderr)
+
+        hetnet.add_edges_from([tuple(r) for r in homology.values])
 
     return hetnet
 
@@ -224,6 +246,8 @@ def write_harmonization_map(fp, uids):
                     prefix = 'GSID:'
                 elif uidtype == 'ontologies':
                     prefix = 'ONTID:'
+                elif uidtype == 'homology':
+                    prefix = 'HOM:'
                 else:
                     prefix = 'ODE:'
 

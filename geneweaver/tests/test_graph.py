@@ -71,8 +71,10 @@ def _graph():
     test_graph = nx.Graph()
     test_graph.add_edges_from([
         (0, 3), (0, 9), (0, 10), (0, 11),
-        (0, 6), (1, 9), (1, 5), (1, 7), (2, 9), (2, 11),
-        (3, 8), (3, 4), (3, 6), (4, 5), (5, 7)
+        (0, 6), (1, 9), (1, 7), (1, 12),
+        (1, 13), (1, 5), (2, 11), (2, 12),
+        (2, 14), (3, 8), (3, 4), (3, 6), (4, 5),
+        (5, 7)
     ])
 
     return test_graph
@@ -93,11 +95,11 @@ def test_harmonize_datasets(_datasets):
 
     assert len(uids['genesets'].keys()) == 3
     assert len(uids['ontologies'].keys()) == 6
-    assert len(uids['genes'].keys()) == 3
+    assert len(uids['genes'].keys()) == 6
 
     assert uids['genesets'].values() == [0, 1, 2]
     assert uids['ontologies'].values() == [3, 4, 5, 6, 7, 8]
-    assert uids['genes'].values() == [9, 10, 11]
+    assert uids['genes'].values() == [9, 10, 11, 12, 13, 14]
 
 def test_build_heterogeneous_graph(_datasets, _graph):
 
@@ -112,7 +114,7 @@ def test_generate_adjacency_list(_graph):
 
     ## Just check a subset
     assert sorted(alist[0]) == [3, 6, 9, 10, 11]
-    assert sorted(alist[1]) == [5, 7, 9]
-    assert sorted(alist[2]) == [9, 11]
+    assert sorted(alist[1]) == [5, 7, 9, 12, 13]
+    assert sorted(alist[2]) == [11, 12, 14]
     assert sorted(alist[3]) == [0, 4, 6, 8]
 
