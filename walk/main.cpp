@@ -292,9 +292,11 @@ AdjacencyList processGraphFileAList( std::string fp, int &matrixSize ) {
     int lineCount = 0;
     int size = static_cast<int>( strtol(line.c_str(), NULL, 10) );
 
-    alist.resize( size );
+    //alist.resize( size );
 
     while (std::getline(file, line)) {
+
+        alist.push_back(std::vector<std::pair<int, double>>());
 
         // Node doesn't have neighbors
         if (line.empty()) {
@@ -328,6 +330,7 @@ AdjacencyList processGraphFileAList( std::string fp, int &matrixSize ) {
         lineCount++;
     }
 
+    size = alist.size();
     matrixSize = size;
 
     return alist;
