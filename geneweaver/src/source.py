@@ -7,12 +7,14 @@
 
 from __future__ import print_function
 import pandas as pd
+import sys
 
-from . import db
+#from . import db
+import db
 
 ## Hardcoded public resource datasets to retrieve. We exclude some since it either
 ## doesn't make sense to include them or we retrieve them from other sources.
-_ontologies = ['GO', 'MP', 'MA', 'MESH', 'CHEBI', 'DO', 'EFO', 'HPO']
+_ontologies = ['GO']#, 'MP', 'MA', 'MESH', 'CHEBI', 'DO', 'EFO', 'HPO']
 _resources = [
     'ABA', 'CTD', 'GWAS', 'DRG', 'GO', 'MP', 'HP', 'MESH', 'MSIGDB', 'OMIM', 'KEGG'
 ]
@@ -30,7 +32,7 @@ def get_tier3_sets():
     values = db.get_geneset_values(gsids)
 
     ## Drop the value column since we don't use it
-    values.drop(['gsv_value'], axis=1)
+    values = values.drop(['gsv_value'], axis=1)
 
     return values
 
@@ -50,7 +52,7 @@ def get_tier5_sets(user=0):
     values = db.get_geneset_values(gsids)
 
     ## Drop the value column since we don't use it
-    values.drop(['values'], axis=1)
+    values = values.drop(['values'], axis=1)
 
     return values
 
@@ -78,7 +80,7 @@ def get_public_resource_sets(resource):
     values = db.get_geneset_values(gsids)
 
     ## Drop the value column since we don't use it
-    values.drop(['gsv_value'], axis=1)
+    values = values.drop(['gsv_value'], axis=1)
 
     return values
 
@@ -97,18 +99,15 @@ def get_ontology(ontology):
     ontologies = db.get_ontologies()
     ontologies['ontdb_prefix'] = ontologies.ontdb_prefix.str.lower()
 
-    if ontology.lower() not in ontologies.ontdb_prefix:
-        return pd.DataFrame()
+    if ontology.lower() not in ontologies.ontdb_prefix.values:
+        return pd.DataFrame(data=[], columns=['left_ont_id', 'right_ont_id'])
 
-    ont_id = ontologies[ontologies['at_abbrev'] == ontology.lower()].ont_id
-    terms = db.get_ontology_terms_by_ontdb(ont_id)
+    ontdb_id = ontologies[ontologies['ontdb_prefix'] == ontology.lower()].ontdb_id.iloc[0]
 
-    ## Drop everything except the GW term id (ont_id) and the reference id (ont_ref_id)
-    terms = terms[['ont_id', 'ont_ref_id']]
+    relations = db.get_all_ontology_relations(ontdb_id)
 
-    relations = db.get_ontology_relations(
-        left=terms.ont_id.tolist(), right=terms.ont_id.tolist()
-    )
+    ## Drop the relation type
+    relations = relations.drop(['or_type'], axis=1)
 
     return relations
 

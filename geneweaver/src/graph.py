@@ -5,12 +5,16 @@
 ## desc: Functions for build the heterogeneous graph.
 ## auth: TR
 
+from __future__ import print_function
 import numpy as np
 import networkx as nx
 import pandas as pd
+import sys
 
-from . import db
-from . import source
+#from . import db
+#from . import source
+import db
+import source
 
 
 def get_graph_data_sources(user=0):
@@ -28,7 +32,7 @@ def get_graph_data_sources(user=0):
     #t5 = source.get_tier5_sets()
     resources = source.get_public_resources()
     ontologies = source.get_ontologies()
-    genesets = pd.concat(t3, resources)
+    genesets = pd.concat([t3, resources])
     annotations = source.get_geneset_annotations(set(genesets.ode_gene_id.tolist()))
     homology = db.get_gene_homologs(
         set(genesets.ode_gene_id.tolist()),
@@ -176,4 +180,50 @@ def generate_adjacency_list(graph):
         adjacency[node] = list(adjacency[node])
 
     return adjacency
+
+
+def write_adjacency_list(fp, alist):
+    """
+    Write the adjacency list to a file in a format that can be accepted by the NESS
+    RWR program.
+    arguments
+        fp:    the filepath
+        alist: the graph represented as an adjacency list
+    """
+
+    with open(fp, 'w') as fl:
+        ## The file format requires the size of the graph as the first line. It can be
+        ## any number since it isn't actually used.
+        print(100, file=fl)
+
+        for k in sorted(alist.keys()):
+            edges = ','.join([str(e) for e in alist[k]])
+
+            print(edges, file=fl)
+
+
+def write_harmonization_map(fp, uids):
+    """
+    Write the GW entity -> UID mapping to a file.
+    arguments
+        fp:  the filepath
+        uid: the UID mapping
+    """
+
+    with open(fp, 'w') as fl:
+        print(0, file=fl)
+
+        for uidtype in uids.keys():
+            for k, v in uids[uidtype].items():
+
+                ## Prefix IDs from GW since they may overlap, the tool's web interface
+                ## will submit prefixed IDs like this anyway
+                if uidtype == 'genesets':
+                    prefix = 'GSID:'
+                elif uidtype == 'ontologies':
+                    prefix = 'ONTID:'
+                else:
+                    prefix = 'ODE:'
+
+                print('\t'.join([prefix + str(k), str(v)]), file=fl)
 

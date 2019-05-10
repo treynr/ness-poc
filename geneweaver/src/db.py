@@ -22,6 +22,9 @@ class ConnectionPoolShim(object):
     def __enter__(self):
         return self.conn
 
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
+
 
 def tuplify(thing):
     """
@@ -318,6 +321,12 @@ def get_ontology_relations(left=None, right=None):
         a dataframe containing ontology relations
     """
 
+    if left:
+        left = tuplify(left)
+
+    if right:
+        right = tuplify(right)
+
     with CONNPOOL as conn:
         return pd.read_sql_query(
             '''
@@ -338,5 +347,35 @@ def get_ontology_relations(left=None, right=None):
             ''',
             conn,
             params={'left': left, 'right': right}
+        )
+
+
+def get_all_ontology_relations(ontdb_id):
+    """
+    Retrieves all ontology relationships associated with the given ontology DB ID
+    (ontdb_id).
+
+    args:
+        ontdb_id: ontology DB ID
+
+    returns
+        a dataframe containing ontology relations
+    """
+
+    with CONNPOOL as conn:
+        return pd.read_sql_query(
+            '''
+            WITH ont_ids AS (
+                SELECT ont_id
+                FROM   extsrc.ontology
+                WHERE  ontdb_id = %(ontdb_id)s
+            )
+            SELECT *
+            FROM   extsrc.ontology_relation
+            WHERE  left_ont_id IN (SELECT * FROM ont_ids) OR
+                   right_ont_id IN (SELECT * FROM ont_ids);
+            ''',
+            conn,
+            params={'ontdb_id': ontdb_id}
         )
 
