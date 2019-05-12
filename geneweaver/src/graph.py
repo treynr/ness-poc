@@ -171,8 +171,6 @@ def build_heterogeneous_graph(ds, uids, add_homology=False):
         homology = homology.dropna()
         homology = homology.astype({'hom_id': np.int64, 'ode_gene_id': np.int64})
 
-        print('# hom edges: %s' % len(homology.index), file=sys.stderr)
-
         hetnet.add_edges_from([tuple(r) for r in homology.values])
 
     return hetnet
