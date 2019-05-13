@@ -73,6 +73,8 @@ def update_homology_ids(genesets, homology):
 def harmonize_datasets(ds, add_homology=False):
     """
     Generates node UIDs for all data types in the given dataset.
+    The UID is basically an index for the graph adjacency list/matrix that can be used
+    as input into the random walk.
 
     arguments
         ds:           a dict returned by the function get_graph_data_sources

@@ -60,6 +60,9 @@ struct Arguments {
     // Use optimized adjacency list representation
     bool s_alist = true;
 
+    // Run a single walk for all seeds rather than N independent walks (one per seed)
+    bool s_all_seeds = false;
+
     // Verbose output
     bool s_verbosity = false;
 };
@@ -79,10 +82,11 @@ void printHelp( char **argv ) {
     std::cout << "  -f, --filter=STRING  filter node types using the given prefix";
     std::cout << std::endl;
     std::cout << "  -m, --matrix         use an adjacency matrix graph representation";
-    std::cout << std::endl;
+    std::cout << std::endl << std::endl;
     std::cout << "RWR options:" << std::endl;
     std::cout << "  -r, --restart        restart parameter";
-    std::cout << std::endl;
+    std::cout << "  -a, --all-seeds      run a single walk for all seeds instead of S walks";
+    std::cout << std::endl << std::endl;
     //std::cout << "    --no-sets: remove gene set nodes from the output";
     //std::cout << std::endl;
     //std::cout << "    --no-homology: remove homology nodes from the output";
@@ -91,8 +95,7 @@ void printHelp( char **argv ) {
     std::cout << "  -h, --help           print help";
     std::cout << std::endl;
     std::cout << "  -v, --verbose        clutter your screen with output";
-    std::cout << std::endl;
-    std::cout << std::endl;
+    std::cout << std::endl << std::endl;
     std::cout << "arguments <graph>, <entity-index-map>, <seeds>, and ";
     std::cout << "<output-file> are required";
     std::cout << std::endl;
@@ -137,6 +140,10 @@ Arguments parseArguments( int argc, char **argv ) {
 
             args.s_alist = false;
 
+        } else if (arg == "-a" || arg == "--all-seeds") {
+
+            args.s_all_seeds = true;
+
         // Eat any unknown arguments
         } else if (arg.length() >= 1 && arg[0] == '-') {
 
@@ -145,7 +152,6 @@ Arguments parseArguments( int argc, char **argv ) {
         // Otherwise we just assume it's an argument
         } else {
 
-            //std::cout << "arg: "<< argv[i] << std::endl;
             if (args.s_graph.empty())
                 args.s_graph = argv[i];
 
@@ -538,27 +544,53 @@ int main( int argc, char **argv ) {
     // File which will contain the results of our walk
     std::ofstream outFile( args.s_output, std::ofstream::out );
 
-    // TODO: Need to add code to start from multiple seeds at once
-    int *seed = (int *) malloc(1 * sizeof(int));
+    int *seed = NULL;
+
+    // Use all seeds for a single walk
+    if (args.s_all_seeds)
+        seed = (int *) malloc(entDexs.size() * sizeof(int));
+    else
+        seed = (int *) malloc(1 * sizeof(int));
 
     log( args.s_verbosity, "[+] Starting the walk..." );
 
     for (auto i = 0U; i < entDexs.size(); i++) {
 
-        seed[0] = entDexs[i];
+        // this is trash but w/e
+        if (args.s_all_seeds) {
+
+            for (auto j = 0U; j < entDexs.size(); j++)
+                seed[j] = entDexs[j];
+
+        } else {
+                seed[0] = entDexs[i];
+        }
 
         double *vector = NULL;
         
         if (args.s_alist) {
 
             vector = randomWalkAList( 
-                size, 1, seed, alist, args.s_restart, 1.0 - args.s_restart
+                //size, 1, seed, alist, args.s_restart, 1.0 - args.s_restart
+                size,
+                args.s_all_seeds ? entDexs.size() : 1,
+                seed,
+                alist,
+                args.s_restart,
+                1.0 - args.s_restart
             );
 
         } else {
 
             vector = randomWalkMatrix( 
-                size, 1, seed, m, args.s_restart, 1.0 - args.s_restart, false
+                //size, 1, seed, m, args.s_restart, 1.0 - args.s_restart, false
+                size,
+                args.s_all_seeds ? entDexs.size() : 1,
+                seed,
+                m,
+                args.s_restart,
+                1.0 - args.s_restart,
+                false
             );
         }
 
@@ -625,6 +657,10 @@ int main( int argc, char **argv ) {
             outFile << imap[entDexs[i]] << "\t" << it->first << "\t" << it->second << std::endl;
 
         free( vector );
+
+        // Only perform the walk once since we're using all seeds as initial start points
+        if (args.s_all_seeds)
+            break;
     }
 
 	return 0;
