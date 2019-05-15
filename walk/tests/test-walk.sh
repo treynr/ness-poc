@@ -9,7 +9,7 @@ output="test.tsv"
 ## Test the random walk using a small directed graph. These results are similar
 ## to those found in Yu et al.
 ## Assumes nessw can be found on the $PATH
-.././nessw -r 0.15 -a "$graph" "$ent_map" "$seeds" "$output" #&& diff "$results" "$output"
+.././nessw -r 0.15 "$graph" "$ent_map" "$seeds" "$output" #&& diff "$results" "$output"
 
 declare -a result1
 declare -a result2
