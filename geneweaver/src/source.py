@@ -14,10 +14,13 @@ import db
 
 ## Hardcoded public resource datasets to retrieve. We exclude some since it either
 ## doesn't make sense to include them or we retrieve them from other sources.
-_ontologies = ['GO']#, 'MP', 'MA', 'MESH', 'CHEBI', 'DO', 'EFO', 'HPO']
+_ontologies = ['GO', 'MP', 'MA', 'MESH', 'CHEBI', 'DO', 'EFO', 'HPO']
+#_resources = ['ABA', 'CTD', 'GWAS', 'DRG', 'MSIGDB', 'OMIM', 'KEGG']
+#_annotations = ['GO', 'HP', 'MESH', 'MP']
 _resources = [
-    'ABA', 'CTD', 'GWAS', 'DRG', 'GO', 'MP', 'HP', 'MESH', 'MSIGDB', 'OMIM', 'KEGG'
+    'ABA', 'CTD', 'GWAS', 'DRG', 'MSIGDB', 'OMIM', 'KEGG', 'GO', 'HP', 'MESH', 'MP'
 ]
+_annotations = []
 
 
 def get_tier3_sets():
@@ -159,6 +162,38 @@ def get_geneset_annotations(gsids):
     annotations = db.get_geneset_annotations(gsids)
 
     return annotations[['gs_id', 'ont_id']]
+
+
+def get_term_annotations(ontologies=_annotations):
+    """
+    Retrieve genes annotated to ontology terms. These are represented as sets, so we
+    retrieve the sets and link each gene in the set to the ontology term.
+
+    arguments
+        ontologies: a list of ontology attributions
+
+    returns
+        a dataframe containing the GW ontology ID (ont_id) and gene ID (ode_gene_id) per
+        row.
+    """
+
+    ## Get ontology prefix -> ontdb_id mappings
+    ontdb_ids = db.get_ontologies()
+    ontdb_ids['ontdb_prefix'] = ontdb_ids.ontdb_prefix.str.lower()
+    annotations = []
+
+    for ont in ontologies:
+        if ont.lower() not in ontdb_ids.ontdb_prefix.values:
+            continue
+
+        ontdb_id = ontdb_ids[ontdb_ids['ontdb_prefix'] == ont.lower()].ontdb_id.iloc[0]
+
+        annotations.append(db.get_term_annotations(ontdb_id))
+
+    if annotations:
+        return pd.concat(annotations)
+
+    return pd.DataFrame([], columns=['ont_id', 'ode_gene_id'])
 
 
 def get_homologs(genes):

@@ -380,6 +380,37 @@ def get_all_ontology_relations(ontdb_id):
         )
 
 
+def get_term_annotations(ontdb_id):
+    """
+    Retrieves ontology term -> gene annotations by retrieving ontology gene sets and
+    associating them with the terms they represent.
+
+    args:
+        ontdb_id: ontology DB ID
+
+    returns
+        a dataframe containing ontology term (ont_id) annotations (ode_gene_id)
+    """
+
+    with CONNPOOL as conn:
+        return pd.read_sql_query(
+            '''
+            SELECT     ont.ont_id, gv.ode_gene_id
+            FROM       extsrc.ontology ont
+            INNER JOIN production.geneset gs
+            --
+            -- Ontology gene sets use the ontology term ID as their labels
+            --
+            ON         ont.ont_ref_id = gs.gs_abbreviation 
+            INNER JOIN extsrc.geneset_value gv
+            USING      (gs_id)
+            WHERE      ont.ontdb_id = %s;
+            ''',
+            conn,
+            params=(ontdb_id,)
+        )
+
+
 ## The following functions are used to get metadata when displaying NESS results.
 
 def get_gene_metadata(genes):

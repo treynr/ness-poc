@@ -9,7 +9,6 @@ from __future__ import print_function
 import numpy as np
 import networkx as nx
 import pandas as pd
-import sys
 
 #from . import db
 #from . import source
@@ -33,14 +32,16 @@ def get_graph_data_sources(user=0):
     resources = source.get_public_resources()
     ontologies = source.get_ontologies()
     genesets = pd.concat([t3, resources])
-    annotations = source.get_geneset_annotations(set(genesets.ode_gene_id.tolist()))
+    gs_annotations = source.get_geneset_annotations(set(genesets.ode_gene_id.tolist()))
+    term_annotations = source.get_term_annotations()
     homology = db.get_gene_homologs(
         set(genesets.ode_gene_id.tolist()),
         source='Homologene'
     )
 
     return {
-        'annotations': annotations,
+        'annotations': gs_annotations,
+        'term_annotations': term_annotations,
         'genesets': genesets,
         'homology': homology,
         'ontologies': ontologies
@@ -89,13 +90,24 @@ def harmonize_datasets(ds, add_homology=False):
     genesets = ds['genesets']
     homology = ds['homology']
     ontologies = ds['ontologies']
+    gs_annotations = ds['annotations']
+    term_annotations = ds['term_annotations']
 
     ## Begin merging all identifiers to generate UIDs for each of them
-    gs_ids = np.array(list(set(genesets.gs_id.tolist())), dtype=np.int64)
-    ont_ids = np.array(list(set(
-        ontologies.left_ont_id.tolist() + ontologies.right_ont_id.tolist()
+    gs_ids = np.array(list(set(
+        genesets.gs_id.tolist() + gs_annotations.gs_id.tolist()
     )), dtype=np.int64)
-    gene_ids = np.array(list(set(genesets.ode_gene_id.tolist())), dtype=np.int64)
+
+    ont_ids = np.array(list(set(
+        gs_annotations.ont_id.tolist() +
+        ontologies.left_ont_id.tolist() +
+        ontologies.right_ont_id.tolist() +
+        term_annotations.ont_id.tolist()
+    )), dtype=np.int64)
+
+    gene_ids = np.array(list(set(
+        genesets.ode_gene_id.tolist() + term_annotations.ode_gene_id.tolist()
+    )), dtype=np.int64)
 
     uids = np.arange(gs_ids.size + ont_ids.size + gene_ids.size)
 
@@ -134,11 +146,12 @@ def build_heterogeneous_graph(ds, uids, add_homology=False):
 
     genesets = ds['genesets']
     ontologies = ds['ontologies']
-    annotations = ds['annotations']
+    gs_annotations = ds['annotations']
+    term_annotations = ds['term_annotations']
 
     ## Map to their UIDs
-    annotations['gs_id'] = annotations.gs_id.map(uids['genesets'])
-    annotations['ont_id'] = annotations.ont_id.map(uids['ontologies'])
+    gs_annotations['gs_id'] = gs_annotations.gs_id.map(uids['genesets'])
+    gs_annotations['ont_id'] = gs_annotations.ont_id.map(uids['ontologies'])
 
     genesets['gs_id'] = genesets.gs_id.map(uids['genesets'])
     genesets['ode_gene_id'] = genesets.ode_gene_id.map(uids['genes'])
@@ -146,16 +159,23 @@ def build_heterogeneous_graph(ds, uids, add_homology=False):
     ontologies['left_ont_id'] = ontologies.left_ont_id.map(uids['ontologies'])
     ontologies['right_ont_id'] = ontologies.right_ont_id.map(uids['ontologies'])
 
+    term_annotations['ont_id'] = term_annotations.ont_id.map(uids['ontologies'])
+    term_annotations['ode_gene_id'] = term_annotations.ode_gene_id.map(uids['genes'])
+
     ## Remove anything that wasn't mapped to a UID
-    annotations = annotations.dropna()
+    gs_annotations = gs_annotations.dropna()
     genesets = genesets.dropna()
     ontologies = ontologies.dropna()
+    term_annotations = term_annotations.dropna()
 
     ## Force to integers
-    annotations = annotations.astype({'gs_id': np.int64, 'ont_id': np.int64})
+    gs_annotations = gs_annotations.astype({'gs_id': np.int64, 'ont_id': np.int64})
     genesets = genesets.astype({'gs_id': np.int64, 'ode_gene_id': np.int64})
     ontologies = ontologies.astype({
         'left_ont_id': np.int64, 'right_ont_id': np.int64
+    })
+    term_annotations = term_annotations.astype({
+        'ont_id': np.int64, 'ode_gene_id': np.int64
     })
 
     ## Build the graph
@@ -163,7 +183,8 @@ def build_heterogeneous_graph(ds, uids, add_homology=False):
 
     hetnet.add_edges_from([tuple(r) for r in genesets.values])
     hetnet.add_edges_from([tuple(r) for r in ontologies.values])
-    hetnet.add_edges_from([tuple(r) for r in annotations.values])
+    hetnet.add_edges_from([tuple(r) for r in gs_annotations.values])
+    hetnet.add_edges_from([tuple(r) for r in term_annotations.values])
 
     if add_homology:
         homology = ds['homology']
