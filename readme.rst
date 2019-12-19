@@ -1,9 +1,12 @@
+This is the proof-of-concept version of NESS. 
+See https://github.com/treynr/ness for the production version.
+
+
+Network Enhanced Similarity Search (NESS)
+===========================================
 
 .. image:: https://img.shields.io/travis/treynr/ness.svg?style=flat-square
     :target: https://travis-ci.org/treynr/ness
-
-Network Enhanced Semantic Similarity (NESS)
-===========================================
 
 Advances in genomics have led to improved classifications of 
 biological categories and concepts, such as disease, via the analysis 
